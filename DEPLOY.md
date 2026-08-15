@@ -46,6 +46,38 @@ a **less** reliable overlay than running it locally. Not worth it for a broadcas
 
 ### Genuinely free options, ranked
 
+### No credit card? Render is the only real option
+
+Oracle, Fly.io and Railway all want a card, even on their free tiers. **Render's free
+web service does not** — a GitHub account is the whole signup.
+
+Its weakness is the 15-minute idle sleep and ~50 second cold start, which would be
+fatal on stream. That is fixable, and worth doing properly:
+
+**Keep it permanently awake with a free uptime pinger.** Render's free tier includes
+750 instance-hours per month; a calendar month is about 730 hours, so *one* service
+can legitimately run 24/7 inside the allowance. Point a free cron/monitor at it every
+5–10 minutes and it never sleeps:
+
+| Service | Card needed | Set-up |
+|---|---|---|
+| [cron-job.org](https://cron-job.org) | no | New cronjob → your URL → every 10 min |
+| [UptimeRobot](https://uptimerobot.com) | no | New monitor → HTTP(s) → 5 min interval |
+
+Point it at **`https://your-app.onrender.com/api/gamedata`** — a tiny JSON response,
+no state touched, no side effects. Don't ping `/api/stream`: that's the SSE endpoint
+and a monitor would hold connections open.
+
+Run only this one service on the account, or the hours get split and it will start
+sleeping again.
+
+The wiped-disk limit still applies and has no workaround, so:
+
+- Put team logos in `assets/teams/` in the repo instead of uploading them in the panel
+- Set operators via the `OPERATORS` env var, not `npm run operator`
+- Set `AUTH_SECRET` so sessions survive restarts
+- Use **Export match JSON** between maps if you want a restore point
+
 ### Hosting it away from your own machine
 
 If running it on the streaming PC isn't an option, there are exactly two free paths
