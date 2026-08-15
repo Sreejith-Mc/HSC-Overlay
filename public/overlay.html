@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>HSC Overlay — Broadcast</title>
+<link rel="stylesheet" href="/overlay.css" />
+</head>
+<body class="overlay">
+
+<!-- ============ inline icon sprite (no external assets required) ============ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="ic-rifle" viewBox="0 0 64 24">
+      <rect x="34" y="10" width="27" height="3"/><rect x="10" y="7" width="25" height="7" rx="1"/>
+      <polygon points="18,14 26,14 28,22 20,22"/><polygon points="2,6 11,7 11,15 2,13"/>
+      <polygon points="12,14 17,14 15,21 10,21"/>
+    </symbol>
+    <symbol id="ic-smg" viewBox="0 0 64 24">
+      <rect x="36" y="10" width="16" height="3"/><rect x="16" y="7" width="21" height="7" rx="1"/>
+      <polygon points="22,14 29,14 30,21 23,21"/><polygon points="8,7 17,8 17,14 8,13"/>
+      <polygon points="17,14 21,14 19,20 15,20"/>
+    </symbol>
+    <symbol id="ic-sniper" viewBox="0 0 64 24">
+      <rect x="34" y="10" width="29" height="3"/><rect x="12" y="8" width="24" height="6" rx="1"/>
+      <rect x="20" y="3" width="16" height="4" rx="2"/><polygon points="24,14 30,14 31,20 25,20"/>
+      <polygon points="1,6 13,8 13,15 1,13"/>
+    </symbol>
+    <symbol id="ic-shotgun" viewBox="0 0 64 24">
+      <rect x="32" y="9" width="30" height="5" rx="1"/><rect x="12" y="8" width="21" height="7" rx="1"/>
+      <rect x="36" y="15" width="12" height="3" rx="1"/><polygon points="14,15 19,15 17,21 11,21"/>
+      <polygon points="1,6 13,8 13,15 1,13"/>
+    </symbol>
+    <symbol id="ic-sidearm" viewBox="0 0 64 24">
+      <rect x="24" y="7" width="30" height="6" rx="1"/><rect x="30" y="13" width="18" height="2"/>
+      <polygon points="24,13 33,13 29,23 20,23"/>
+    </symbol>
+    <symbol id="ic-heavy" viewBox="0 0 64 24">
+      <rect x="38" y="10" width="24" height="3"/><rect x="14" y="6" width="25" height="8" rx="1"/>
+      <circle cx="26" cy="18" r="6"/><polygon points="2,5 15,7 15,15 2,13"/>
+    </symbol>
+    <symbol id="ic-melee" viewBox="0 0 64 24">
+      <polygon points="8,20 40,5 46,9 14,22"/><rect x="44" y="6" width="12" height="4" rx="2" transform="rotate(-24 44 6)"/>
+    </symbol>
+    <symbol id="ic-none" viewBox="0 0 64 24"><rect x="26" y="10" width="12" height="3" rx="1.5" opacity=".5"/></symbol>
+    <symbol id="ic-shield" viewBox="0 0 24 24"><path d="M12 1.6 3.4 5v6.8c0 5.3 3.6 9.3 8.6 10.6 5-1.3 8.6-5.3 8.6-10.6V5Z"/></symbol>
+    <symbol id="ic-spike" viewBox="0 0 24 24"><path d="M12 1 3 6v8.4L12 23l9-8.6V6Zm0 5.3 4.6 2.6v5.2L12 17.7 7.4 14.1V8.9Z"/></symbol>
+    <symbol id="ic-defuse" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 3.2A6.8 6.8 0 0 1 18.8 12c0 1.4-.4 2.7-1.2 3.8L8.2 6.4A6.7 6.7 0 0 1 12 5.2Zm0 13.6A6.8 6.8 0 0 1 5.2 12c0-1.4.4-2.7 1.2-3.8l9.4 9.4a6.7 6.7 0 0 1-3.8 1.2Z"/></symbol>
+    <symbol id="ic-skull" viewBox="0 0 24 24"><path d="M12 2C7 2 3.5 5.4 3.5 10.2c0 2.6 1.1 4.4 2.6 5.6v3c0 .8.6 1.4 1.4 1.4h9c.8 0 1.4-.6 1.4-1.4v-3c1.5-1.2 2.6-3 2.6-5.6C20.5 5.4 17 2 12 2ZM8.6 12.4a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm6.8 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></symbol>
+    <symbol id="ic-clock" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 10.6V6h-2v7.4l5 3 1-1.7Z"/></symbol>
+    <symbol id="ic-ult" viewBox="0 0 24 24"><path d="M12 1.5 15 9l7.5 3-7.5 3-3 7.5L9 15l-7.5-3L9 9Z"/></symbol>
+    <symbol id="ic-cred" viewBox="0 0 24 24"><path d="M12 2 2 12l10 10 10-10Zm0 4.6L17.4 12 12 17.4 6.6 12Z"/></symbol>
+  </defs>
+</svg>
+
+<div id="stage" class="stage" data-mode="buy" data-ready="0">
+
+  <!-- ======================= TOP BAR ======================= -->
+  <header class="topbar">
+
+    <div class="series-strip" id="seriesStrip">
+      <div class="ss-item"><b>CURRENT:</b><span id="ssCurrent">—</span></div>
+      <i class="ss-sep"></i>
+      <div class="ss-item"><b>NEXT:</b><span id="ssNext">—</span></div>
+      <i class="ss-sep"></i>
+      <div class="ss-item"><b>DECIDER:</b><span id="ssDecider">—</span></div>
+    </div>
+
+    <div class="scorebar" id="scorebar">
+      <div class="sb-team sb-a">
+        <div class="sb-logo" id="sbLogoA"></div>
+        <div class="sb-id">
+          <span class="sb-tag" id="sbTagA">ALP</span>
+          <span class="sb-side" id="sbSideA">ATK</span>
+        </div>
+        <div class="sb-score" id="sbScoreA">0</div>
+      </div>
+
+      <div class="sb-core">
+        <div class="sb-round" id="sbRound">ROUND 1</div>
+        <div class="sb-timer" id="sbTimer">0:30</div>
+        <div class="sb-phase" id="sbPhase">
+          <span class="ph-dot"></span><span id="sbPhaseText">BUY PHASE</span>
+        </div>
+        <div class="sb-spike" id="sbSpike"><svg class="i"><use href="#ic-spike"/></svg><span>PLANTED</span></div>
+      </div>
+
+      <div class="sb-team sb-b">
+        <div class="sb-score" id="sbScoreB">0</div>
+        <div class="sb-id">
+          <span class="sb-tag" id="sbTagB">BRV</span>
+          <span class="sb-side" id="sbSideB">DEF</span>
+        </div>
+        <div class="sb-logo" id="sbLogoB"></div>
+      </div>
+
+      <div class="sb-series" id="sbSeries"><span id="sbSeriesA">0</span><i>BO3</i><span id="sbSeriesB">0</span></div>
+    </div>
+
+    <div class="sponsor" id="sponsorBox">
+      <div class="sp-label">PRESENTED BY</div>
+      <div class="sp-slot" id="sponsorSlot">YOUR SPONSOR</div>
+    </div>
+  </header>
+
+  <!-- ======================= LIVE RAILS ======================= -->
+  <section class="rails" id="rails">
+    <div class="rail rail-a" id="railA"></div>
+    <div class="rail rail-b" id="railB"></div>
+  </section>
+
+  <!-- ======================= BUY BOARD ======================= -->
+  <section class="buyboard" id="buyboard">
+    <div class="bb-head">
+      <div class="bb-team bb-team-a">
+        <div class="bb-logo" id="bbLogoA"></div>
+        <div class="bb-name" id="bbNameA">TEAM ALPHA</div>
+        <div class="bb-loadout"><span class="lv-label">LOADOUT</span><b id="bbLoadA">0</b></div>
+        <div class="bb-econ" id="bbEconA">ECO</div>
+      </div>
+
+      <div class="bb-ladder" id="ladder"></div>
+
+      <div class="bb-team bb-team-b">
+        <div class="bb-econ" id="bbEconB">ECO</div>
+        <div class="bb-loadout"><b id="bbLoadB">0</b><span class="lv-label">LOADOUT</span></div>
+        <div class="bb-name" id="bbNameB">TEAM BRAVO</div>
+        <div class="bb-logo" id="bbLogoB"></div>
+      </div>
+    </div>
+
+    <div class="bb-body">
+      <div class="bb-col bb-col-a">
+        <div class="bb-cols"><i class="c-player">PLAYER</i><i class="c-k">K</i><i class="c-d">D</i><i class="c-a">A</i><i class="w c-abils">ABILITIES</i><i class="c-sh">SH</i><i class="w c-gun">LOADOUT</i><i class="w c-creds">CREDS</i></div>
+        <div class="bb-rows" id="bbRowsA"></div>
+      </div>
+      <div class="bb-gutter"></div>
+      <div class="bb-col bb-col-b">
+        <div class="bb-cols"><i class="w c-creds">CREDS</i><i class="w c-gun">LOADOUT</i><i class="c-sh">SH</i><i class="w c-abils">ABILITIES</i><i class="c-a">A</i><i class="c-d">D</i><i class="c-k">K</i><i class="c-player">PLAYER</i></div>
+        <div class="bb-rows" id="bbRowsB"></div>
+      </div>
+    </div>
+
+    <div class="bb-foot" id="bbFoot">
+      <div class="chips chips-a" id="chipsA"></div>
+      <div class="bb-map" id="bbMap">ASCENT</div>
+      <div class="chips chips-b" id="chipsB"></div>
+    </div>
+  </section>
+
+  <!-- ======================= MAP VETO SCREEN ======================= -->
+  <section class="veto" id="veto">
+    <div class="veto-bg" id="vetoBg"></div>
+    <div class="veto-scrim"></div>
+    <div class="veto-inner">
+      <div class="veto-head">
+        <div class="vh-teams"><span id="vhTeamA">TEAM A</span><i>VS</i><span id="vhTeamB">TEAM B</span></div>
+        <div class="vh-title" id="vhTitle">MAP SELECTION</div>
+      </div>
+      <div class="veto-maps" id="vetoMaps"></div>
+    </div>
+  </section>
+
+  <!-- ======================= AGENT PICK SCREEN ======================= -->
+  <section class="apick" id="agentPick">
+    <div class="ap-head">
+      <div class="ap-team" id="apTeam">TEAM</div>
+      <div class="ap-title" id="apTitle">AGENT SELECT</div>
+    </div>
+    <div class="ap-row" id="apRow"></div>
+  </section>
+
+  <!-- =============== TIMEOUT / RESULT BAND (shared language) =============== -->
+  <section class="band" id="band">
+    <div class="band-rule top"><i></i><i></i></div>
+    <div class="band-body">
+      <div class="band-word" id="bandWord">TIMEOUT</div>
+      <div class="band-centre">
+        <div class="band-logo" id="bandLogo"></div>
+        <div class="band-meta">
+          <div class="band-team" id="bandTeam">TEAM</div>
+          <div class="band-score" id="bandScore"></div>
+        </div>
+      </div>
+    </div>
+    <div class="band-rule bottom"><i></i><i></i></div>
+  </section>
+
+  <!-- ============ ROUND WIN POPUP — same band language, slimmer ============ -->
+  <div class="rwin" id="roundWin">
+    <div class="rw-band">
+      <div class="rw-accent"></div>
+      <div class="rw-logo" id="rwLogo"></div>
+      <div class="rw-main">
+        <div class="rw-line">
+          <span class="rw-team" id="rwTeam">TEAM</span>
+          <span class="rw-tag">WINS ROUND <b id="rwRound">13</b></span>
+        </div>
+        <div class="rw-cond"><svg class="i" id="rwCondIcon"><use href="#ic-skull"/></svg><span id="rwCond">ELIMINATION</span></div>
+      </div>
+      <div class="rw-score"><b class="rw-a" id="rwScoreA">0</b><i>–</i><b class="rw-b" id="rwScoreB">0</b></div>
+      <div class="rw-badges" id="rwBadges"></div>
+      <div class="rw-sponsor" id="rwSponsor"></div>
+    </div>
+  </div>
+
+  <!-- ======================= LOWER THIRD ======================= -->
+  <div class="lower-third" id="lowerThird">
+    <div class="lt-bar"></div>
+    <div class="lt-text"><b id="ltTitle"></b><span id="ltSub"></span></div>
+  </div>
+
+  <div class="offline" id="offline">OVERLAY DISCONNECTED — is the server running?</div>
+</div>
+
+<script src="/overlay.js"></script>
+</body>
+</html>

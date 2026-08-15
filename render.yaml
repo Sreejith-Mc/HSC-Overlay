@@ -1,0 +1,35 @@
+# Render blueprint — the closest thing to genuinely-free hosting that can
+# actually run this app (a persistent process holding SSE connections).
+#
+# Deploy: push this repo to GitHub, then Render → New → Blueprint → pick the repo.
+#
+# Read the caveats in DEPLOY.md before relying on this for a live event. The
+# short version: the free tier sleeps after 15 minutes idle and takes ~50s to
+# wake, and its disk is wiped on every restart.
+services:
+  - type: web
+    name: hsc-overlay
+    runtime: node
+    plan: free
+    # Zero dependencies, so there is nothing to install and no build step.
+    buildCommand: ''
+    startCommand: node server/index.js
+    healthCheckPath: /api/gamedata
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: HOST
+        value: 0.0.0.0
+      # Render terminates TLS in front of the app, so cookies need the Secure
+      # flag and the real client IP has to come from the proxy header.
+      - key: TRUST_PROXY
+        value: '1'
+      # Free tier has an ephemeral filesystem: data/auth.json would be recreated
+      # on every restart, losing operator accounts and signing everyone out.
+      # These two keep auth stable across restarts. Set them in the dashboard.
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: OPERATORS
+        sync: false          # set manually: name:password,name2:password2
+      - key: INGEST_KEY
+        generateValue: true

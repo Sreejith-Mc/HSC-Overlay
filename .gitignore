@@ -1,0 +1,30 @@
+# Operator passwords and the session-signing secret. Never commit this —
+# anyone with it can mint a valid session for your panel. On a hosted box use
+# the AUTH_SECRET and OPERATORS environment variables instead.
+data/auth.json
+
+# Live match state. Committing it means a deploy would overwrite whatever
+# match is in progress on the server.
+data/match.json
+
+# Per-machine tooling config, not part of the app
+.claude/settings.local.json
+
+# Node
+node_modules/
+npm-debug.log*
+
+# OS / editor noise
+Thumbs.db
+desktop.ini
+.DS_Store
+*.swp
+
+# Local scratch
+*.log
+tmp/
+
+# NOTE: assets/ and data/gamedata.json ARE intentionally committed.
+# Hosts with an ephemeral filesystem wipe anything written at runtime, so the
+# artwork and patch data have to ship with the repo or the overlay deploys
+# with no agent portraits or weapon art.

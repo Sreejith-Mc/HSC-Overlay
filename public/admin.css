@@ -1,0 +1,706 @@
+/* ==========================================================================
+   HSC Overlay — operator control panel
+   Apple-style materials and motion, translated to the web.
+
+   Material hierarchy (WWDC "Designing Fluid Interfaces" / materials guidance):
+     · environment  — the tinted mesh behind everything, so glass has
+                      something to actually refract
+     · chrome       — topnav + match bar: the thickest glass, content scrolls under
+     · card         — mid-weight glass, large surfaces read thicker
+     · control      — SOLID fills, never translucent. Stacking a light
+                      translucent surface on another collapses legibility.
+
+   Motion: critically damped by default (no overshoot); bounce is reserved for
+   momentum-driven gestures, of which this panel has none.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* Apple system palette, softened slightly to sit on glass */
+  --blue: #007aff;
+  --blue-press: #0062cc;
+  --red: #ff3b30;
+  --green: #34c759;
+  --orange: #ff9500;
+
+  --ink: #1c1c1e;
+  --ink-2: rgba(60, 60, 67, .78);
+  /* Vibrancy: tertiary text has to be darker and denser than it would be on a
+     solid background — a flat mid-grey measures ~2.8:1 once the glass and the
+     tinted environment are composited under it. */
+  --ink-3: rgba(48, 48, 56, .74);
+
+  /* Materials. Alpha + blur, never a flat colour. */
+  --mat-chrome: rgba(255, 255, 255, .62);
+  --mat-card: rgba(255, 255, 255, .55);
+  --mat-inset: rgba(118, 118, 128, .12);   /* solid-feeling control fill */
+  --mat-inset-hi: rgba(118, 118, 128, .2);
+  --mat-solid: #ffffff;
+
+  /* Bright top edge = light catching the leading face of the material */
+  --edge: rgba(255, 255, 255, .7);
+  --hairline: rgba(60, 60, 67, .14);
+
+  --shadow-card: 0 1px 1px rgba(0, 0, 0, .04), 0 8px 28px rgba(0, 0, 0, .07);
+  --shadow-chrome: 0 1px 1px rgba(0, 0, 0, .05), 0 12px 40px rgba(0, 0, 0, .1);
+  --shadow-pop: 0 4px 12px rgba(0, 0, 0, .12), 0 24px 60px rgba(0, 0, 0, .18);
+
+  --r-xl: 26px;
+  --r-lg: 20px;
+  --r-md: 13px;
+  --r-sm: 9px;
+
+  /* Critically damped — reaches target and settles, no overshoot. */
+  --spring: cubic-bezier(.32, .72, 0, 1);
+  --fast: 120ms;
+  --base: 320ms;
+  --slow: 440ms;
+
+  --tA: #22d3a6;
+  --tB: #ff4655;
+}
+
+body.dark {
+  color-scheme: dark;
+
+  --blue: #0a84ff;
+  --blue-press: #409cff;
+  --red: #ff453a;
+  --green: #30d158;
+  --orange: #ff9f0a;
+
+  --ink: #f2f2f7;
+  --ink-2: rgba(235, 235, 245, .78);
+  --ink-3: rgba(240, 240, 250, .62);
+
+  --mat-chrome: rgba(30, 30, 34, .62);
+  --mat-card: rgba(38, 38, 43, .52);
+  --mat-inset: rgba(118, 118, 128, .24);
+  --mat-inset-hi: rgba(118, 118, 128, .36);
+  --mat-solid: #1c1c1e;
+
+  --edge: rgba(255, 255, 255, .14);
+  --hairline: rgba(255, 255, 255, .1);
+
+  --shadow-card: 0 1px 1px rgba(0, 0, 0, .3), 0 8px 28px rgba(0, 0, 0, .4);
+  --shadow-chrome: 0 1px 1px rgba(0, 0, 0, .35), 0 12px 40px rgba(0, 0, 0, .5);
+  --shadow-pop: 0 4px 12px rgba(0, 0, 0, .5), 0 24px 60px rgba(0, 0, 0, .6);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ==========================================================================
+   ENVIRONMENT — the layer the glass refracts
+   ========================================================================== */
+
+html { background: #eceef2; }
+body.dark { background: #0a0a0c; }
+
+body {
+  position: relative;
+  min-height: 100vh;
+  color: var(--ink);
+  /* System font first: it already ships optical sizing and tracking tables. */
+  font: 400 15px/1.47 -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+        'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;                    /* body sits at neutral tracking */
+  -webkit-font-smoothing: antialiased;
+  padding: 12px 20px 56px;
+}
+
+/* Soft colour fields. Fixed, so they never move under the blur — a slowly
+   drifting full-viewport background is exactly what reduced-motion forbids. */
+body::before {
+  content: '';
+  position: fixed; inset: -20%;
+  z-index: -1;
+  background:
+    radial-gradient(38% 42% at 14% 12%, rgba(0, 122, 255, .3), transparent 62%),
+    radial-gradient(32% 38% at 86% 8%, rgba(255, 45, 85, .2), transparent 60%),
+    radial-gradient(44% 46% at 74% 88%, rgba(88, 86, 214, .24), transparent 64%),
+    radial-gradient(36% 40% at 22% 82%, rgba(52, 199, 89, .16), transparent 62%);
+  filter: saturate(120%);
+}
+body.dark::before { opacity: .5; }
+
+kbd {
+  display: inline-block; padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--mat-inset);
+  box-shadow: inset 0 -1px 0 var(--hairline);
+  font: 600 12px/1.5 ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+  color: var(--ink-2);
+}
+code {
+  font: 12px ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+  background: var(--mat-inset); color: var(--ink-2);
+  padding: 2px 6px; border-radius: 6px;
+}
+
+/* ==========================================================================
+   MATERIALS
+   ========================================================================== */
+
+/* Chrome: the heaviest glass. Large surface → stronger blur, deeper shadow. */
+.topnav, .matchbar {
+  position: relative;
+  background: var(--mat-chrome);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  backdrop-filter: blur(40px) saturate(180%);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-chrome), inset 0 1px 0 var(--edge);
+}
+
+.topnav {
+  position: sticky; top: 12px; z-index: 40;
+  display: grid; grid-template-columns: auto 1fr auto;
+  align-items: center; gap: 18px;
+  height: 62px; padding: 0 10px 0 22px;
+  margin-bottom: 12px;
+}
+
+/* Cards: mid-weight glass. Lighter than chrome so chrome stays on top. */
+.card {
+  position: relative;
+  background: var(--mat-card);
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  backdrop-filter: blur(26px) saturate(170%);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card), inset 0 1px 0 var(--edge);
+  padding: 20px 22px 24px;
+}
+
+/* ==========================================================================
+   TYPOGRAPHY — tracking is size-specific, leading inverse to size
+   ========================================================================== */
+
+.brand {
+  font-size: 19px; font-weight: 700;
+  letter-spacing: -.022em;             /* large text: negative tracking */
+  line-height: 1.1;
+}
+.brand span { color: var(--ink-3); font-weight: 500; margin-left: 6px; letter-spacing: -.01em; }
+
+.card h3 {
+  font-size: 17px; font-weight: 600;
+  letter-spacing: -.015em; line-height: 1.25;
+  margin: 0 0 12px; padding-bottom: 11px;
+  border-bottom: .5px solid var(--hairline);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
+}
+.card h3:not(:first-child) { margin-top: 24px; }
+.card h4 {
+  font-size: 13px; font-weight: 600; color: var(--ink-2);
+  letter-spacing: -.005em; margin: 18px 0 9px;
+}
+.card h4 small { color: var(--ink-3); font-weight: 400; margin-left: 7px; letter-spacing: 0; }
+
+/* Vibrancy: over translucent surfaces, secondary text gets more contrast and
+   a touch more weight than it would need on a solid background. */
+.hint { font-size: 13px; color: var(--ink-3); font-weight: 500; letter-spacing: .004em; }
+.note { font-size: 13.5px; color: var(--ink-2); font-weight: 450; line-height: 1.5; margin-bottom: 12px; }
+
+/* ==========================================================================
+   NAVIGATION — segmented control
+   ========================================================================== */
+
+.tabs {
+  display: flex; gap: 2px; justify-self: center; flex-wrap: wrap;
+  padding: 3px; border-radius: 999px;
+  background: var(--mat-inset);
+}
+.tab {
+  background: transparent; color: var(--ink-2); border: 0;
+  padding: 8px 17px; border-radius: 999px;
+  font: 600 14px/1 inherit; letter-spacing: -.008em;
+  cursor: pointer;
+  transition: background var(--fast) var(--spring),
+              color var(--fast) var(--spring),
+              transform var(--fast) var(--spring);
+}
+.tab:hover { color: var(--ink); }
+.tab:active { transform: scale(.96); }          /* feedback on press, not release */
+.tab.on {
+  background: var(--mat-solid); color: var(--ink);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .1), 0 0 0 .5px var(--hairline);
+}
+
+.topnav-right { display: flex; align-items: center; gap: 9px; }
+
+.iconbtn {
+  width: 36px; height: 36px; flex: none;
+  border-radius: 999px; border: 0;
+  background: var(--mat-inset); color: var(--ink-2);
+  font-size: 15px; cursor: pointer;
+  display: grid; place-items: center;
+  transition: background var(--fast) var(--spring), transform var(--fast) var(--spring);
+}
+.iconbtn:hover { background: var(--mat-inset-hi); color: var(--ink); }
+.iconbtn:active { transform: scale(.92); }
+
+.conn {
+  font-size: 12.5px; font-weight: 500; color: var(--ink-3);
+  padding: 5px 11px; border-radius: 999px; background: var(--mat-inset);
+}
+.conn.ok { color: var(--green); }
+.conn.bad { color: var(--red); }
+.who { font-size: 13px; color: var(--ink-3); }
+.who b { color: var(--ink); font-weight: 600; }
+
+/* ==========================================================================
+   MATCH BAR
+   ========================================================================== */
+
+.matchbar {
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; gap: 18px;
+  padding: 13px 20px; margin-bottom: 12px;
+}
+.mb-score { display: flex; align-items: center; gap: 11px; font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+.mb-score .ta { color: var(--tA); } .mb-score .tb { color: var(--tB); }
+.mb-score i { font-style: normal; font-size: 27px; font-weight: 700; letter-spacing: -.025em; }
+.mb-score s { color: var(--ink-3); text-decoration: none; }
+
+.mb-clock { display: flex; align-items: center; gap: 11px; justify-self: center; }
+.mb-clock b {
+  font-size: 29px; font-weight: 700; min-width: 82px; text-align: center;
+  letter-spacing: -.03em;              /* tightest tracking on the largest text */
+  font-variant-numeric: tabular-nums;
+}
+.mb-clock .phase {
+  font-size: 11.5px; font-weight: 600; letter-spacing: .01em;
+  padding: 4px 11px; border-radius: 999px;
+  background: var(--mat-inset); color: var(--ink-2);
+}
+.mb-clock .phase[data-p="live"] { background: var(--green); color: #fff; }
+.mb-clock .phase[data-p="buy"] { background: var(--orange); color: #fff; }
+.mb-clock .rnd { color: var(--ink-3); font-weight: 600; font-size: 13px; }
+.mb-actions { display: flex; align-items: center; gap: 8px; justify-self: end; }
+
+/* ==========================================================================
+   PANELS — materialize, don't just fade
+   ========================================================================== */
+
+.panel { display: none; }
+/* Panels move on transform + opacity only. Animating `filter: blur()` here
+   would repaint a subtree containing five or more backdrop-filtered cards
+   every frame — the materialize treatment is kept for single surfaces
+   (toast, login) where it costs one element, not a whole panel. */
+.panel.on {
+  display: block;
+  animation: panelIn var(--base) var(--spring) both;
+}
+@keyframes panelIn {
+  from { opacity: 0; transform: scale(.99) translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Single glass surfaces genuinely materialize: blur and scale together, so
+   the surface reads as a material arriving rather than a flat fade. */
+@keyframes materialize {
+  from { opacity: 0; transform: scale(.96) translateY(10px); filter: blur(8px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+
+.stack { display: grid; gap: 12px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.veto-grid { display: grid; gap: 12px; }
+.live-grid { display: grid; grid-template-columns: 330px 1fr 330px; gap: 12px; align-items: start; }
+@media (max-width: 1560px) { .live-grid { grid-template-columns: 310px 1fr; } .feed { grid-column: 1 / -1; } }
+@media (max-width: 1100px) { .live-grid, .two { grid-template-columns: 1fr; } }
+
+/* ==========================================================================
+   CONTROLS — solid fills. Never another translucent layer.
+   ========================================================================== */
+
+.btn {
+  position: relative;
+  background: var(--mat-inset); color: var(--ink);
+  border: 0; border-radius: var(--r-md);
+  padding: 11px 16px; min-height: 40px;
+  font: 600 14px/1.2 inherit; letter-spacing: -.008em;
+  cursor: pointer; user-select: none;
+  transition: background var(--fast) var(--spring),
+              transform var(--fast) var(--spring),
+              box-shadow var(--fast) var(--spring);
+}
+.btn:hover { background: var(--mat-inset-hi); }
+.btn:active { transform: scale(.97); }
+.btn em {
+  font-style: normal; font-size: 10.5px; font-weight: 600; color: var(--ink-3);
+  margin-left: 7px; padding: 2px 6px; border-radius: 5px;
+  background: var(--mat-inset);
+}
+
+.btn.ghost { background: transparent; color: var(--ink-2); box-shadow: inset 0 0 0 .5px var(--hairline); }
+.btn.ghost:hover { background: var(--mat-inset); color: var(--ink); }
+.btn.big { flex: 1; padding: 14px; font-size: 15px; }
+.btn.go { background: var(--blue); color: #fff; }
+.btn.go:hover { background: var(--blue-press); }
+.btn.warn { background: var(--orange); color: #fff; }
+.btn.warn:hover { filter: brightness(1.06); }
+.btn.danger { background: var(--red); color: #fff; }
+.btn.danger:hover { filter: brightness(1.06); }
+.btn.on { background: var(--blue); color: #fff; }
+.btn.seg { flex: 1; }
+.btn.file { display: inline-flex; align-items: center; }
+.btn:disabled { opacity: .32; cursor: not-allowed; }
+.btn:disabled:active { transform: none; }
+
+.row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 9px; }
+.row > .btn { flex: 1 1 auto; }
+
+.winner-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 7px; }
+.btn.winner.wa { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--tA) 60%, transparent); }
+.btn.winner.wb { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--tB) 60%, transparent); }
+.btn.winner.wa.armed { background: var(--tA); color: #06110d; box-shadow: none; }
+.btn.winner.wb.armed { background: var(--tB); color: #fff; box-shadow: none; }
+
+.cond-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 7px;
+  opacity: .3; pointer-events: none;
+  transition: opacity var(--base) var(--spring);
+}
+.cond-row.armed { opacity: 1; pointer-events: auto; }
+.btn.cond { font-size: 13px; }
+
+/* ==========================================================================
+   KILL LOGGER
+   ========================================================================== */
+
+.opsgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.opscol { display: grid; gap: 7px; align-content: start; }
+
+.pcard {
+  background: var(--mat-inset);
+  border-radius: var(--r-md);
+  box-shadow: inset 3px 0 0 var(--team);
+  overflow: hidden;
+  transition: box-shadow var(--fast) var(--spring),
+              background var(--fast) var(--spring),
+              transform var(--fast) var(--spring);
+}
+.opscol:nth-child(1) .pcard { --team: var(--tA); }
+.opscol:nth-child(2) .pcard { --team: var(--tB); }
+.pcard.dead { opacity: .45; }
+.pcard.killer {
+  box-shadow: inset 3px 0 0 var(--team), 0 0 0 2.5px var(--blue);
+  background: color-mix(in srgb, var(--blue) 14%, transparent);
+}
+.pcard.assist { box-shadow: inset 3px 0 0 var(--team), 0 0 0 2.5px var(--orange); }
+
+.pc-head {
+  display: grid; grid-template-columns: 24px 1fr auto auto; align-items: center; gap: 10px;
+  padding: 10px 12px; cursor: pointer;
+  transition: background var(--fast) var(--spring);
+}
+.pc-head:hover { background: var(--mat-inset); }
+.pc-head:active { background: var(--mat-inset-hi); }
+.pc-key {
+  font: 600 11px/1 inherit; color: var(--ink-3);
+  width: 22px; height: 22px; border-radius: 7px;
+  background: var(--mat-inset-hi);
+  display: grid; place-items: center;
+}
+.pc-name { font-size: 14.5px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-agent { font-size: 11.5px; color: var(--ink-3); }
+.pc-kda { font-size: 13px; color: var(--ink-3); font-weight: 600; }
+.pc-kda b { color: var(--ink); }
+.pc-alive { width: 9px; height: 9px; border-radius: 50%; background: var(--green); }
+.pcard.dead .pc-alive { background: var(--red); }
+
+.pc-buy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 86px) auto;
+  gap: 6px; align-items: center; padding: 0 12px 12px;
+}
+.chg-group {
+  display: flex; gap: 2px; padding: 2px;
+  background: var(--mat-solid); border-radius: 10px;
+  box-shadow: inset 0 0 0 .5px var(--hairline);
+}
+.chg {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: transparent; border: 0;
+  color: var(--ink-3); font: 600 11.5px/1 inherit; cursor: pointer;
+  transition: background var(--fast) var(--spring), color var(--fast) var(--spring), transform var(--fast) var(--spring);
+}
+.chg:hover { background: var(--mat-inset); color: var(--ink); }
+.chg:active { transform: scale(.9); }
+.chg.on { background: var(--ink); color: var(--mat-solid); }
+.chg.ult { width: 46px; }
+.chg.ult.ready { background: var(--blue); color: #fff; }
+
+.preset-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 11px; }
+.presets { display: flex; gap: 5px; flex-wrap: wrap; }
+.presets .btn { flex: 1 1 auto; font-size: 12px; padding: 9px 8px; min-height: 34px; }
+
+/* ==========================================================================
+   FORM CONTROLS
+   ========================================================================== */
+
+input, select, textarea {
+  background: var(--mat-solid); color: var(--ink);
+  border: 0; border-radius: var(--r-sm);
+  box-shadow: inset 0 0 0 .5px var(--hairline);
+  padding: 10px 12px; min-height: 38px;
+  font: 400 14px/1.3 inherit; letter-spacing: -.006em;
+  width: 100%; min-width: 0;
+  transition: box-shadow var(--fast) var(--spring);
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--blue) 28%, transparent),
+              inset 0 0 0 .5px var(--blue);
+}
+input[type="color"] { padding: 3px; height: 38px; cursor: pointer; }
+input[type="checkbox"] { width: auto; min-height: 0; accent-color: var(--blue); }
+select:disabled, input:disabled { opacity: .38; }
+
+.fields { display: grid; gap: 11px; }
+label {
+  display: grid; gap: 5px;
+  font-size: 12.5px; font-weight: 500; color: var(--ink-3); letter-spacing: .003em;
+}
+label.chk { display: flex; align-items: center; gap: 9px; color: var(--ink-2); font-size: 13.5px; cursor: pointer; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+
+/* ==========================================================================
+   ROSTER / VETO / AGENT / LAYOUT ROWS
+   ========================================================================== */
+
+.team-head { display: grid; grid-template-columns: 62px 1fr 92px 116px; gap: 11px; align-items: end; margin-bottom: 15px; }
+.logo-drop {
+  width: 62px; height: 62px; border-radius: var(--r-md);
+  background: var(--mat-inset) center/contain no-repeat;
+  box-shadow: inset 0 0 0 1.5px var(--hairline);
+  display: grid; place-items: center;
+  font-size: 10px; color: var(--ink-3); cursor: pointer; text-align: center;
+  transition: box-shadow var(--fast) var(--spring), transform var(--fast) var(--spring);
+}
+.logo-drop:hover { box-shadow: inset 0 0 0 1.5px var(--blue); }
+.logo-drop:active { transform: scale(.97); }
+
+.rplayer {
+  display: grid;
+  grid-template-columns:
+    22px minmax(0, 1fr) minmax(0, 138px) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 98px) minmax(0, 72px) minmax(0, 62px);
+  gap: 6px; align-items: center;
+  padding: 6px 0; border-bottom: .5px solid var(--hairline);
+}
+.rplayer:last-child { border-bottom: 0; }
+.rplayer .idx { color: var(--ink-3); font-weight: 600; font-size: 12px; text-align: center; }
+.rhead { font-size: 11.5px; color: var(--ink-3); font-weight: 600; }
+
+.vrow, .arow, .lrow {
+  display: grid; gap: 7px; align-items: center;
+  padding: 7px 10px; border-radius: var(--r-sm); margin-bottom: 4px;
+  background: var(--mat-inset);
+}
+.vrow {
+  grid-template-columns:
+    26px minmax(0, 1.4fr) minmax(0, 138px) minmax(0, 116px) minmax(0, 116px) minmax(0, 98px) 40px;
+}
+.arow { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 98px); }
+.lrow { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 42px 90px 42px; }
+
+.vrow.vhead, .arow.ahead, .lrow.lhead {
+  background: transparent; font-size: 11.5px; color: var(--ink-3);
+  font-weight: 600; padding-bottom: 2px; margin-bottom: 2px;
+}
+.vnum { text-align: center; color: var(--ink-3); font-weight: 600; font-size: 12px; }
+.vrow[data-action="ban"] { background: color-mix(in srgb, var(--red) 13%, transparent); }
+.vrow[data-action="pick"] { background: color-mix(in srgb, var(--blue) 13%, transparent); }
+.vrow[data-action="decider"] { background: color-mix(in srgb, var(--orange) 14%, transparent); }
+.v-rev, .a-rev { font-size: 11.5px; padding: 8px 6px; min-height: 34px; }
+.v-del { padding: 8px 6px; min-height: 34px; }
+.aname, .lname { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.laxis { font-size: 12.5px; color: var(--ink-3); }
+.l-dec, .l-inc { padding: 8px 0; font-size: 16px; font-weight: 600; min-height: 34px; }
+.l-val { text-align: center; }
+
+/* ==========================================================================
+   FEED
+   ========================================================================== */
+
+.log { display: grid; gap: 4px; max-height: 360px; overflow: auto; }
+.log-item {
+  display: grid; grid-template-columns: 34px 1fr; gap: 10px;
+  font-size: 13px; padding: 9px 12px;
+  background: var(--mat-inset); border-radius: var(--r-sm);
+  box-shadow: inset 3px 0 0 var(--ink-3);
+}
+.log-item .r { color: var(--ink-3); font-weight: 600; }
+.log-item[data-k="round"] { box-shadow: inset 3px 0 0 var(--blue); }
+.log-item[data-k="spike"] { box-shadow: inset 3px 0 0 var(--red); }
+.log-item[data-k="sides"], .log-item[data-k="match"],
+.log-item[data-k="veto"], .log-item[data-k="agents"] { box-shadow: inset 3px 0 0 var(--green); }
+.log-item .by {
+  font-style: normal; font-size: 10.5px; font-weight: 600;
+  color: var(--blue); margin-left: 7px;
+  padding: 1px 7px; border-radius: 999px;
+  background: color-mix(in srgb, var(--blue) 14%, transparent);
+}
+
+.derived { margin-top: 13px; display: grid; gap: 5px; }
+.dstat {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; padding: 9px 12px;
+  background: var(--mat-inset); border-radius: var(--r-sm); color: var(--ink-2);
+}
+.dstat b { font-weight: 600; color: var(--ink); }
+
+/* ==========================================================================
+   TOGGLES — iOS switch
+   ========================================================================== */
+
+.toggles { display: grid; gap: 17px; }
+.tgroup h4 { margin: 0 0 7px; }
+.tgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+@media (max-width: 900px) { .tgrid { grid-template-columns: 1fr 1fr; } }
+
+.toggle {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 13px; border-radius: var(--r-md);
+  background: var(--mat-inset); cursor: pointer;
+  font-size: 13.5px; font-weight: 500; color: var(--ink-3);
+  transition: background var(--fast) var(--spring), color var(--fast) var(--spring), transform var(--fast) var(--spring);
+}
+.toggle:hover { background: var(--mat-inset-hi); }
+.toggle:active { transform: scale(.98); }
+.toggle.on { color: var(--ink); }
+.toggle i {
+  width: 38px; height: 23px; border-radius: 999px; flex: none;
+  background: var(--mat-inset-hi); position: relative;
+  transition: background var(--base) var(--spring);
+}
+.toggle i::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 19px; height: 19px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25), 0 0 0 .5px rgba(0, 0, 0, .04);
+  transition: left var(--base) var(--spring);
+}
+.toggle.on i { background: var(--green); }
+.toggle.on i::after { left: 17px; }
+
+/* ==========================================================================
+   SPONSORS / URLS / ASSETS / HELP
+   ========================================================================== */
+
+.sponsors { display: grid; gap: 7px; margin-bottom: 11px; }
+.sponsor-row { display: grid; grid-template-columns: 50px 1fr auto auto; gap: 7px; align-items: center; }
+.sponsor-row .thumb {
+  width: 50px; height: 38px; border-radius: var(--r-sm);
+  background: var(--mat-inset) center/contain no-repeat;
+  box-shadow: inset 0 0 0 1.5px var(--hairline); cursor: pointer;
+  transition: box-shadow var(--fast) var(--spring);
+}
+.sponsor-row .thumb:hover { box-shadow: inset 0 0 0 1.5px var(--blue); }
+
+.urls { display: grid; gap: 7px; }
+.urlrow { display: grid; grid-template-columns: 1fr auto; gap: 7px; align-items: center; }
+.urlrow input { font: 12.5px ui-monospace, 'SF Mono', 'Cascadia Mono', monospace; }
+
+.assetlist { display: flex; flex-wrap: wrap; gap: 7px; max-height: 230px; overflow: auto; }
+.assetlist img {
+  width: 54px; height: 54px; object-fit: contain; padding: 4px;
+  background: var(--mat-inset); border-radius: var(--r-sm);
+}
+
+.keys { width: 100%; border-collapse: collapse; }
+.keys td { padding: 9px 4px; border-bottom: .5px solid var(--hairline); font-size: 13.5px; color: var(--ink-2); }
+.keys td:first-child { width: 168px; }
+.keys td.sep { color: var(--blue); font-size: 13px; font-weight: 600; }
+.bullets { padding-left: 19px; display: grid; gap: 7px; font-size: 13.5px; color: var(--ink-2); line-height: 1.5; }
+.bullets li::marker { color: var(--blue); }
+pre.code {
+  background: var(--mat-inset); border-radius: var(--r-md); padding: 13px;
+  font: 12.5px/1.65 ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+  color: var(--ink-2); overflow: auto;
+}
+
+/* ==========================================================================
+   TOAST — materializes in from the bottom, exits the same way
+   ========================================================================== */
+
+.toast {
+  position: fixed; left: 50%; bottom: 28px;
+  transform: translate(-50%, 16px) scale(.96);
+  background: var(--mat-chrome);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+  color: var(--ink);
+  padding: 13px 24px; border-radius: 999px;
+  font: 600 14px/1 inherit; letter-spacing: -.008em;
+  box-shadow: var(--shadow-pop), inset 0 1px 0 var(--edge);
+  opacity: 0; pointer-events: none;
+  transition: opacity var(--base) var(--spring), transform var(--base) var(--spring);
+  z-index: 90;
+}
+.toast.on { opacity: 1; transform: translate(-50%, 0) scale(1); }
+
+/* ==========================================================================
+   LOGIN
+   ========================================================================== */
+
+.login {
+  width: 100%; max-width: 390px;
+  background: var(--mat-card);
+  -webkit-backdrop-filter: blur(34px) saturate(180%);
+  backdrop-filter: blur(34px) saturate(180%);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-pop), inset 0 1px 0 var(--edge);
+  padding: 36px 34px 30px;
+  animation: materialize var(--slow) var(--spring) both;
+}
+.login .brand { font-size: 27px; margin-bottom: 5px; letter-spacing: -.028em; }
+.login .sub { font-size: 13.5px; color: var(--ink-3); margin-bottom: 24px; }
+.login label { margin-bottom: 15px; }
+.login .btn { width: 100%; padding: 14px; font-size: 15px; margin-top: 7px; }
+.err {
+  background: color-mix(in srgb, var(--red) 15%, transparent);
+  border-radius: var(--r-sm); color: var(--red);
+  font-size: 13.5px; font-weight: 500; padding: 11px 14px; margin-bottom: 17px;
+  display: none;
+}
+.err.on { display: block; }
+.foot { margin-top: 21px; font-size: 12.5px; color: var(--ink-3); line-height: 1.65; }
+
+/* ==========================================================================
+   ACCESSIBILITY — three independent signals, each handled properly
+   ========================================================================== */
+
+/* Reduced motion: keep the feedback, drop the travel. Not "no animation". */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .12s !important;
+  }
+  .panel.on, .login { animation: fadeOnly .16s ease both; }
+  @keyframes fadeOnly { from { opacity: 0; } to { opacity: 1; } }
+  .btn:active, .tab:active, .chg:active, .toggle:active, .iconbtn:active { transform: none; }
+  .toast { transform: translate(-50%, 0); }
+}
+
+/* Reduced transparency: frost the glass solid, drop the blur cost. */
+@media (prefers-reduced-transparency: reduce) {
+  .topnav, .matchbar, .card, .toast, .login {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--mat-solid);
+  }
+  body::before { display: none; }
+  html { background: #f2f2f7; }
+  body.dark { background: #000; }
+}
+
+/* Increased contrast: near-solid surfaces with defined borders. */
+@media (prefers-contrast: more) {
+  :root { --ink-2: rgba(60, 60, 67, .95); --ink-3: rgba(60, 60, 67, .8); --hairline: rgba(60, 60, 67, .4); }
+  body.dark { --ink-2: rgba(235, 235, 245, .95); --ink-3: rgba(235, 235, 245, .8); --hairline: rgba(255, 255, 255, .35); }
+  .topnav, .matchbar, .card, .login { background: var(--mat-solid); box-shadow: 0 0 0 1px var(--hairline); }
+  .btn, input, select { box-shadow: inset 0 0 0 1px var(--hairline); }
+}

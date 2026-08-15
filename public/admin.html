@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HSC Overlay — Control Panel</title>
+<link rel="stylesheet" href="/admin.css" />
+</head>
+<body>
+
+<header class="topnav">
+  <div class="brand">HSC<span>OVERLAY</span></div>
+
+  <nav class="tabs">
+    <button class="tab on" data-tab="live">Live Ops</button>
+    <button class="tab" data-tab="rosters">Teams</button>
+    <button class="tab" data-tab="veto">Map Veto</button>
+    <button class="tab" data-tab="screens">Screens</button>
+    <button class="tab" data-tab="broadcast">Broadcast</button>
+    <button class="tab" data-tab="overlay">Overlay</button>
+    <button class="tab" data-tab="help">Help</button>
+  </nav>
+
+  <div class="topnav-right">
+    <span class="conn" id="conn">connecting…</span>
+    <span class="who" id="who" title="Operators signed in right now"></span>
+    <button class="iconbtn" id="btnTheme" title="Light / dark">◐</button>
+    <button class="btn ghost" id="btnLogout" hidden>Sign out</button>
+  </div>
+</header>
+
+<div class="matchbar">
+  <div class="mb-score">
+    <b class="ta" id="hTagA">ALP</b>
+    <i id="hScoreA">0</i><s>:</s><i id="hScoreB">0</i>
+    <b class="tb" id="hTagB">BRV</b>
+  </div>
+
+  <div class="mb-clock">
+    <span class="phase" id="hPhase">BUY</span>
+    <b id="hTimer">0:30</b>
+    <span class="rnd" id="hRound">R1</span>
+  </div>
+
+  <div class="mb-actions">
+    <button class="btn ghost" id="btnUndo" title="Ctrl+Z / Z">↶ Undo <em id="undoCount">0</em></button>
+    <a class="btn ghost" href="/overlay" target="_blank">Open overlay ↗</a>
+  </div>
+</div>
+
+<!-- ==================== LIVE OPS ==================== -->
+<main class="panel on" data-panel="live">
+  <div class="live-grid">
+
+    <!-- round control -->
+    <section class="card ctrl">
+      <h3>Round control <span class="hint">clock, spike, result</span></h3>
+      <p class="note">The buy phase rolls into the round on its own. You only need to call the
+        spike and the round result.</p>
+
+      <div class="row phase-row">
+        <button class="btn seg" data-act="phase" data-v="buy">BUY <em>B</em></button>
+        <button class="btn seg" data-act="phase" data-v="live">LIVE <em>L</em></button>
+        <button class="btn seg" data-act="phase" data-v="post">POST <em>P</em></button>
+      </div>
+
+      <div class="row clock-row">
+        <button class="btn big" id="btnClock">▶ START <em>Space</em></button>
+        <button class="btn" data-act="time" data-v="-10">−10s</button>
+        <button class="btn" data-act="time" data-v="10">+10s</button>
+        <button class="btn" data-act="time" data-v="reset">Reset</button>
+      </div>
+
+      <div class="row spike-row">
+        <button class="btn warn" data-act="spike" data-v="plant">Spike planted <em>S</em></button>
+        <button class="btn" data-act="spike" data-v="defuse">Defused <em>D</em></button>
+        <button class="btn ghost" data-act="spike" data-v="clear">Clear</button>
+      </div>
+
+      <h4>Round result <small>arm a winner, then pick how</small></h4>
+      <div class="winner-row">
+        <button class="btn winner wa" data-act="arm" data-v="A">Team A wins <em>A</em></button>
+        <button class="btn winner wb" data-act="arm" data-v="B">Team B wins <em>;</em></button>
+      </div>
+      <div class="cond-row" id="condRow">
+        <button class="btn cond" data-act="end" data-v="elim">Elimination <em>E</em></button>
+        <button class="btn cond" data-act="end" data-v="spike">Spike detonated <em>K</em></button>
+        <button class="btn cond" data-act="end" data-v="defuse">Defused <em>F</em></button>
+        <button class="btn cond" data-act="end" data-v="time">Time expired <em>T</em></button>
+      </div>
+
+      <div class="row next-row">
+        <button class="btn go" data-act="next">Next round ▸ <em>N</em></button>
+        <button class="btn ghost" data-act="undoRound">Revert last round</button>
+      </div>
+
+      <div class="row swap-row">
+        <button class="btn ghost" data-act="swapSides">Swap sides</button>
+        <button class="btn ghost" data-act="swapAll">Mirror teams (L↔R)</button>
+      </div>
+    </section>
+
+    <!-- kill logger + buy grid -->
+    <section class="card ops">
+      <h3>
+        Kill logger &amp; buy
+        <span class="hint" id="killHint">click KILLER → click VICTIM · shift-click teammates for assists</span>
+      </h3>
+      <p class="note">Top half of a card logs kills, bottom half sets that player's buy.
+        Right-click a card to toggle alive/dead without touching stats.</p>
+      <div class="opsgrid">
+        <div class="opscol" id="opsA"></div>
+        <div class="opscol" id="opsB"></div>
+      </div>
+      <div class="preset-row">
+        <div class="presets" id="presetsA"></div>
+        <div class="presets" id="presetsB"></div>
+      </div>
+    </section>
+
+    <!-- feed -->
+    <section class="card feed">
+      <h3>Event feed <span class="hint">newest first</span></h3>
+      <p class="note">Everything the match engine has worked out for itself. With several
+        operators signed in, entries are tagged with who caused them.</p>
+      <div class="log" id="log"></div>
+      <div class="derived" id="derivedBox"></div>
+    </section>
+
+  </div>
+</main>
+
+<!-- ==================== ROSTERS ==================== -->
+<main class="panel" data-panel="rosters">
+  <div class="two">
+    <section class="card" id="teamCardA"></section>
+    <section class="card" id="teamCardB"></section>
+  </div>
+</main>
+
+<!-- ==================== MAP VETO ==================== -->
+<main class="panel" data-panel="veto">
+  <div class="veto-grid">
+    <section class="card">
+      <h3>Map selection screen <span class="hint">full-frame takeover — hides the scorebar and boards while up</span></h3>
+      <div class="row">
+        <button class="btn go" data-act="vetoShow">Show on stream</button>
+        <button class="btn ghost" data-act="vetoHide">Hide</button>
+        <label style="flex:2">Heading<input data-bind="veto.title" /></label>
+      </div>
+
+      <h3>Reveal <span class="hint">each card swipes up from the bottom</span></h3>
+      <div class="row">
+        <button class="btn" data-act="revealNext">Reveal next ▸</button>
+        <button class="btn" data-act="revealAll">Reveal all</button>
+        <button class="btn ghost" data-act="revealNone">Reset (hide all)</button>
+      </div>
+
+      <h3>Map pool <span class="hint">any size — 3, 5, 7 maps all lay out evenly</span></h3>
+      <div class="row">
+        <button class="btn" data-act="vetoAdd">+ Add map</button>
+        <button class="btn ghost" data-act="vetoPreset" data-v="3">Bo3 (3 maps)</button>
+        <button class="btn ghost" data-act="vetoPreset" data-v="5">Bo5 (5 maps)</button>
+        <button class="btn ghost" data-act="vetoPreset" data-v="7">Full pool (7)</button>
+        <button class="btn danger" data-act="vetoClear">Clear</button>
+      </div>
+
+      <div class="vrow vhead">
+        <span></span><span>MAP</span><span>ACTION</span><span>BY</span><span>DEFENSE</span><span>SHOWN</span><span></span>
+      </div>
+      <div id="vetoList"></div>
+      <p class="note" style="margin-top:10px">
+        <b>BAN</b> greys the map and drops a red overlay with who banned it.
+        <b>PICK</b> / <b>DECIDER</b> show who selected it and which team starts on defence.
+        Leave ACTION blank for maps still in the pool.
+      </p>
+    </section>
+  </div>
+</main>
+
+<!-- ==================== SCREENS ==================== -->
+<main class="panel" data-panel="screens">
+  <div class="two">
+    <section class="card">
+      <h3>Agent select <span class="hint">five cards, agent art + player name</span></h3>
+      <p class="note">Pulls the line-up straight from TEAMS &amp; ROSTERS — set each player's agent there
+        and it appears here. Cards fly in staggered when the screen opens.</p>
+      <div class="row">
+        <button class="btn go" data-act="apShow">Show on stream</button>
+        <button class="btn ghost" data-act="apHide">Hide</button>
+      </div>
+      <div class="row">
+        <button class="btn seg" data-act="apTeam" data-v="A">Team A</button>
+        <button class="btn seg" data-act="apTeam" data-v="B">Team B</button>
+        <label style="flex:2">Heading<input data-bind="screens.agentPick.title" /></label>
+      </div>
+      <h4>Reveal <small>each card swipes up, one player at a time</small></h4>
+      <div class="row">
+        <button class="btn" data-act="apRevealNext">Reveal next ▸</button>
+        <button class="btn" data-act="apRevealAll">Reveal all</button>
+        <button class="btn ghost" data-act="apRevealNone">Reset (hide all)</button>
+      </div>
+
+      <h4>Line-up <small>pick each agent and reveal them individually</small></h4>
+      <div class="arow ahead"><span>PLAYER</span><span>AGENT</span><span>SHOWN</span></div>
+      <div id="apList"></div>
+
+      <h4>Spotlight a player <small>lifts one revealed card in the team colour</small></h4>
+      <div class="row" id="apFocusRow"></div>
+    </section>
+
+    <section class="card">
+      <h3>Timeout & result band <span class="hint">centre-screen band with the team logo</span></h3>
+      <p class="note">Uses the team logo from TEAMS &amp; ROSTERS. VICTORY and DEFEAT also carry the
+        current scoreline; TIMEOUT never shows a score.</p>
+      <div class="row">
+        <button class="btn seg" data-act="bandKind" data-v="timeout">Timeout</button>
+        <button class="btn seg" data-act="bandKind" data-v="win">Victory</button>
+        <button class="btn seg" data-act="bandKind" data-v="loss">Defeat</button>
+      </div>
+      <div class="row">
+        <button class="btn seg" data-act="bandTeam" data-v="A">Team A</button>
+        <button class="btn seg" data-act="bandTeam" data-v="B">Team B</button>
+      </div>
+      <div class="row">
+        <button class="btn go" data-act="bandShow">Show on stream</button>
+        <button class="btn ghost" data-act="bandHide">Hide</button>
+      </div>
+      <label class="chk"><input type="checkbox" data-bind="screens.banner.showScore" data-bool="1" /> Show scoreline on VICTORY / DEFEAT</label>
+
+      <h3>Round-win popup</h3>
+      <p class="note">Fires automatically when you call a round — team logo, name, updated score,
+        win condition, and any THRIFTY / ACE / CLUTCH / FLAWLESS badges.</p>
+      <div class="row">
+        <label style="flex:1">Hold for<input type="number" step="500" data-bind="overlay.roundPopupMs" data-num="1" /> ms</label>
+        <button class="btn" data-act="testPopup">Test popup</button>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- ==================== BROADCAST ==================== -->
+<main class="panel" data-panel="broadcast">
+  <div class="two">
+    <section class="card">
+      <h3>Event &amp; series <span class="hint">the text around the scorebar</span></h3>
+      <p class="note">Series score is maps won so far — it shows under the scorebar as <b>0 BO3 1</b>.</p>
+      <div class="fields">
+        <label>Event name<input data-bind="broadcast.event" /></label>
+        <label>Stage / description<input data-bind="broadcast.stage" /></label>
+        <label>Best of<select data-bind="broadcast.bestOf" data-num="1"><option>1</option><option>3</option><option>5</option></select></label>
+        <div class="pair">
+          <label>Series — Team A<input type="number" data-bind="broadcast.seriesA" data-num="1" /></label>
+          <label>Series — Team B<input type="number" data-bind="broadcast.seriesB" data-num="1" /></label>
+        </div>
+      </div>
+
+      <h3>Maps <span class="hint">shown in the top-left strip</span></h3>
+      <div class="fields">
+        <label>Current map<select data-bind="maps.current" data-maps="1"></select></label>
+        <label>Next map<select data-bind="maps.next" data-maps="1"></select></label>
+        <label>Decider<select data-bind="maps.decider" data-maps="1"></select></label>
+      </div>
+
+      <h3>Match <span class="hint">reset or move a match between machines</span></h3>
+      <div class="row">
+        <button class="btn warn" data-act="newMap">New map (keep rosters)</button>
+        <button class="btn danger" data-act="resetMatch">Full reset</button>
+      </div>
+      <div class="row">
+        <button class="btn ghost" data-act="export">Export match JSON</button>
+        <label class="btn ghost file">Import JSON<input type="file" id="importFile" accept="application/json" hidden /></label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Sponsors <span class="hint">rotate in the top-right slot</span></h3>
+      <p class="note">Rotates in the top-right slot. Upload a logo or just use text.</p>
+      <div id="sponsorList" class="sponsors"></div>
+      <div class="row">
+        <button class="btn" data-act="addSponsor">+ Add sponsor</button>
+        <label>Rotate every<input type="number" style="width:90px" data-bind="broadcast.sponsorMs" data-num="1" /> ms</label>
+      </div>
+
+      <h3>Lower third</h3>
+      <div class="fields">
+        <label class="chk"><input type="checkbox" data-bind="overlay.lowerThird.on" data-bool="1" /> Show lower third</label>
+        <label>Title<input data-bind="overlay.lowerThird.title" /></label>
+        <label>Subtitle<input data-bind="overlay.lowerThird.subtitle" /></label>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- ==================== OVERLAY ==================== -->
+<main class="panel" data-panel="overlay">
+  <div class="stack">
+
+    <div class="two">
+      <section class="card">
+        <h3>Mode <span class="hint">what the overlay is showing right now</span></h3>
+        <p class="note">Auto follows the match phase — buy board during the buy, player rails once
+          the round is live. Force one when you want to hold a look.</p>
+        <div class="row">
+          <button class="btn seg" data-act="mode" data-v="auto">Auto</button>
+          <button class="btn seg" data-act="mode" data-v="buy">Buy board</button>
+          <button class="btn seg" data-act="mode" data-v="live">In-play</button>
+          <button class="btn seg" data-act="mode" data-v="off">Hide all</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>Browser sources <span class="hint">paste into OBS</span></h3>
+        <p class="note">Add as a Browser Source at 1920×1080, and untick
+          “Shutdown source when not visible”.</p>
+        <div class="urls" id="urls"></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <h3>Position <span class="hint">move elements clear of the game</span></h3>
+      <p class="note">Measured in 1920×1080 pixels — down is positive. Use − / + for 10px steps,
+        hold <kbd>Shift</kbd> for 1px, or type an exact number. Changes apply live.</p>
+      <div id="layoutRows"></div>
+      <div class="row">
+        <button class="btn ghost" data-act="layoutReset">Reset all positions</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Elements <span class="hint">switch any part of the overlay on or off</span></h3>
+      <p class="note">Everything is independent and applies instantly — safe to flip mid-round.</p>
+      <div class="toggles" id="toggles"></div>
+    </section>
+
+    <section class="card">
+      <h3>Artwork <span class="hint">agent, weapon, map and team images</span></h3>
+      <p class="note">Run <code>npm run assets</code> to fetch the official artwork, or drop your own
+        into <code>assets/agents</code>, <code>assets/teams</code>, <code>assets/weapons</code> and
+        <code>assets/maps</code>. Files are matched by name — <code>jett.png</code> attaches to Jett.</p>
+      <div id="estimatedWarn"></div>
+      <div id="assetList" class="assetlist"></div>
+    </section>
+
+  </div>
+</main>
+
+<!-- ==================== HELP ==================== -->
+<main class="panel" data-panel="help">
+  <div class="two">
+    <section class="card">
+      <h3>Hotkeys <span class="hint">the panel must have focus</span></h3>
+      <p class="note">Built for one hand on the keyboard: log kills and call rounds without reaching for the mouse.</p>
+      <table class="keys">
+        <tr><td><kbd>1</kbd>–<kbd>5</kbd></td><td>Team A players 1–5</td></tr>
+        <tr><td><kbd>6</kbd>–<kbd>0</kbd></td><td>Team B players 1–5</td></tr>
+        <tr><td colspan="2" class="sep">Press killer, then victim — the kill fires instantly.</td></tr>
+        <tr><td><kbd>Space</kbd></td><td>Start / pause the clock</td></tr>
+        <tr><td><kbd>B</kbd> <kbd>L</kbd> <kbd>P</kbd></td><td>Phase: buy / live / post</td></tr>
+        <tr><td><kbd>S</kbd> / <kbd>D</kbd></td><td>Spike planted / defused</td></tr>
+        <tr><td><kbd>A</kbd> / <kbd>;</kbd></td><td>Arm round winner (A / B)</td></tr>
+        <tr><td><kbd>E</kbd> <kbd>K</kbd> <kbd>F</kbd> <kbd>T</kbd></td><td>…then: elim / spike / defuse / time</td></tr>
+        <tr><td><kbd>N</kbd></td><td>Next round</td></tr>
+        <tr><td><kbd>Z</kbd></td><td>Undo last action</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Cancel a pending kill / armed winner</td></tr>
+      </table>
+    </section>
+    <section class="card">
+      <h3>What the engine works out for you</h3>
+      <ul class="bullets">
+        <li>K / D / A, first bloods and alive counts — from kills you log.</li>
+        <li>Credits — kill rewards, win bonus, loss streak bonus, plant bonus, 9 000 cap.</li>
+        <li>Loadout value — weapons + shields + ability charges, per player and per team.</li>
+        <li>Clutches — the system flags a 1vX the moment it happens and awards it if that player's team wins.</li>
+        <li>Thrifties — the winning team was out-bought at round start (ratio or flat gap, both configurable).</li>
+        <li>Flawless, aces, pistol rounds, plants and defuses.</li>
+        <li>Buy phase auto-rolls into live when the clock runs out. Side swap fires at the half and each OT pair.</li>
+      </ul>
+      <h3>Ingest <span class="hint">optional automation</span></h3>
+      <p class="note">Anything that can POST JSON can drive this — an OCR script, a Stream Deck, a second operator on a phone.
+        Same action shapes the panel uses:</p>
+      <pre class="code">POST /api/ingest?key=hsc
+{"type":"kill","killer":"A1","victim":"B3"}
+{"type":"round.end","winner":"A","condition":"spike"}
+{"type":"player.patch","id":"A1","patch":{"hp":42}}</pre>
+    </section>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+<script src="/admin.js"></script>
+</body>
+</html>

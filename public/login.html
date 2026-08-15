@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HSC Overlay — Sign in</title>
+<link rel="stylesheet" href="/admin.css" />
+<style>
+  /* Card styling lives in admin.css; this page only needs to centre it. */
+  body { display: grid; place-items: center; min-height: 100vh; padding: 24px; }
+  .foot code { display: inline-block; margin-top: 5px; }
+</style>
+</head>
+<body>
+  <form class="login" id="form" autocomplete="on">
+    <div class="brand">HSC<span>OVERLAY</span></div>
+    <div class="sub">OPERATOR SIGN IN</div>
+
+    <div class="err" id="err"></div>
+
+    <label>Operator name
+      <input name="name" id="name" autocomplete="username" autocapitalize="off" spellcheck="false" required />
+    </label>
+    <label>Password
+      <input name="password" id="password" type="password" autocomplete="current-password" required />
+    </label>
+    <button class="btn go" type="submit" id="submit">SIGN IN</button>
+
+    <div class="foot">
+      Multiple operators can be signed in at once — everything stays in sync live.
+      <br />No account yet? On the server run:
+      <code>npm run operator -- add &lt;name&gt;</code>
+    </div>
+  </form>
+
+<script>
+  // Match whatever theme the operator last chose in the panel.
+  if (localStorage.getItem('hsc-theme') === 'dark') document.body.classList.add('dark');
+
+  const form = document.getElementById('form');
+  const err = document.getElementById('err');
+  const submit = document.getElementById('submit');
+  const next = new URLSearchParams(location.search).get('next') || '/admin';
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    err.classList.remove('on');
+    submit.disabled = true;
+    submit.textContent = 'SIGNING IN…';
+    try {
+      const r = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: document.getElementById('name').value,
+          password: document.getElementById('password').value,
+        }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (r.ok && data.ok) { location.href = next; return; }
+      err.textContent = data.error || 'Sign in failed.';
+      err.classList.add('on');
+    } catch {
+      err.textContent = 'Cannot reach the server.';
+      err.classList.add('on');
+    }
+    submit.disabled = false;
+    submit.textContent = 'SIGN IN';
+    document.getElementById('password').value = '';
+  });
+</script>
+</body>
+</html>

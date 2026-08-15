@@ -1,0 +1,17 @@
+{
+  "name": "hsc-overlay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HSC Overlay — a broadcast overlay + operator control suite for VALORANT tournaments. Zero dependencies.",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "assets": "node tools/fetch-assets.js",
+    "operator": "node tools/operator.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
