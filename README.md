@@ -270,7 +270,7 @@ results, because both write to the same state.
 Accounts are managed from the command line:
 
 ```bash
-npm run operator -- add adarsh
+npm run operator -- add sreejith
 ```
 
 With no operators configured the panel is **open to anyone who can reach the server** —

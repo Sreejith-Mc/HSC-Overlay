@@ -131,7 +131,7 @@ Set these in the Render dashboard so auth survives restarts:
 
 | Variable | Value |
 |---|---|
-| `OPERATORS` | `adarsh:some-password,ravi:another-password` |
+| `OPERATORS` | `sreejith:some-password,caster2:another-password` |
 | `AUTH_SECRET` | any long random string (keeps sessions valid across restarts) |
 | `TRUST_PROXY` | `1` |
 | `INGEST_KEY` | something long, if the URL is public |
@@ -280,10 +280,10 @@ safe the moment you expose the server. The server prints a warning on boot when 
 this state.
 
 ```bash
-npm run operator -- add adarsh      # prompts for a password, hidden
+npm run operator -- add sreejith    # prompts for a password, hidden
 npm run operator -- list
-npm run operator -- passwd adarsh
-npm run operator -- remove adarsh
+npm run operator -- passwd sreejith
+npm run operator -- remove sreejith
 ```
 
 Passwords are stored as scrypt hashes with per-account salts. Sessions are signed
