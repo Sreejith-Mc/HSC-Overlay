@@ -1,0 +1,49 @@
+# Keeps the Render free instance from spinning down.
+#
+# Render's free tier sleeps after 15 minutes with no inbound traffic, and waking
+# it takes ~50 seconds — plus a short window where its router hasn't relocated
+# the port yet. Neither is acceptable if the overlay is the first thing to hit
+# it when you go live. This pings a cheap endpoint often enough that it never
+# sleeps.
+#
+# Free tier includes 750 instance-hours a month and a month is ~730 hours, so a
+# single service can legitimately stay up 24/7 inside the allowance. Don't run a
+# second service on the same account or the hours get split.
+
+name: Keep overlay awake
+
+on:
+  schedule:
+    # Every 10 minutes. GitHub's scheduler is best-effort and can run late under
+    # load, so 10 leaves headroom against the 15-minute sleep timer.
+    - cron: '*/10 * * * *'
+  workflow_dispatch:        # lets you trigger it by hand from the Actions tab
+
+concurrency:
+  group: keep-awake
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping the overlay
+        run: |
+          URL="https://hsc-overlay.onrender.com/api/gamedata"
+
+          # Up to 3 tries. A cold start can take ~50s, and Render's router can
+          # 404 for a moment right after one, so a single failed request means
+          # nothing on its own.
+          for attempt in 1 2 3; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 "$URL" || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "✅ awake (HTTP $code on attempt $attempt)"
+              exit 0
+            fi
+            echo "attempt $attempt → HTTP $code, retrying in 20s"
+            sleep 20
+          done
+
+          echo "❌ still not responding after 3 attempts — check the Render dashboard"
+          exit 1
