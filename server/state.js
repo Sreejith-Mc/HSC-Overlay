@@ -404,6 +404,36 @@ function nextRound(state) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Full-frame screens
+ * ------------------------------------------------------------------ */
+
+/** The takeover screens. Only one may be up at a time. */
+const SCREENS = ['veto', 'agentPick', 'banner'];
+
+const screenLabel = { veto: 'Map selection', agentPick: 'Agent select', banner: 'Timeout / result band' };
+
+const screenIsOn = (state, which) =>
+  which === 'veto' ? !!state.veto.on : !!state.screens[which]?.on;
+
+function setScreen(state, which, on) {
+  if (which === 'veto') state.veto.on = on;
+  else if (state.screens[which]) state.screens[which].on = on;
+}
+
+/**
+ * Shows one takeover and closes the others. They all cover the whole frame, so
+ * leaving a previous one on would stack two graphics on stream — easy to do
+ * when an operator moves between tabs without hiding the first.
+ */
+function showOnlyScreen(state, which) {
+  const evicted = SCREENS.filter((s) => s !== which && screenIsOn(state, s));
+  for (const s of SCREENS) setScreen(state, s, s === which);
+  if (evicted.length) {
+    pushLog(state, 'screen', `${screenLabel[which]} shown — auto-hid ${evicted.map((e) => screenLabel[e]).join(' + ')}`);
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Reducer
  * ------------------------------------------------------------------ */
 
@@ -425,8 +455,26 @@ export function reduce(state, action) {
 
   switch (a.type) {
     /* ---- generic edit surface used by most admin fields ---- */
-    case 'patch':
+    case 'patch': {
       deepPatch(state, a.patch);
+      // Turning a takeover on via a plain patch still evicts the others, so
+      // the rule holds however the change arrives — panel button, second
+      // operator, or an ingest adapter.
+      const p = a.patch || {};
+      if (p.veto?.on === true) showOnlyScreen(state, 'veto');
+      else if (p.screens?.agentPick?.on === true) showOnlyScreen(state, 'agentPick');
+      else if (p.screens?.banner?.on === true) showOnlyScreen(state, 'banner');
+      break;
+    }
+
+    /* ---- explicit screen control, for adapters and hotkeys ---- */
+    case 'screen.show':
+      if (SCREENS.includes(a.screen)) showOnlyScreen(state, a.screen);
+      break;
+
+    case 'screen.hide':
+      if (a.screen) setScreen(state, a.screen, false);
+      else for (const s of SCREENS) setScreen(state, s, false);   // clear the frame
       break;
 
     case 'player.patch': {

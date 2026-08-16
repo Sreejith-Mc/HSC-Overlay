@@ -128,6 +128,12 @@ The **SCREENS** tab holds the standalone full-frame screens. Like the veto, each
 takeover — the scorebar, buy board and rails hide themselves while it's up, so no extra
 browser source is needed.
 
+**Only one takeover can be on at a time.** Map selection, agent select and the timeout /
+result band all cover the whole frame, so showing one automatically hides whichever was up.
+You can leave a screen on, move to another tab and hit **Show on stream** there — the
+previous one closes itself rather than stacking two graphics on air. The event feed records
+it, so an operator can see why something disappeared.
+
 **Agent select** — five cards with the agent's full-body art, agent name and player name.
 
 Pick each player's agent right in this tab (or in TEAMS & ROSTERS — same thing), then reveal
