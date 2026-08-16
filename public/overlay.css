@@ -756,11 +756,22 @@ svg.i { width: 1em; height: 1em; fill: currentColor; display: block; }
 .ap-foot {
   position: absolute; left: 0; right: 0; bottom: 0; height: 92px;
   display: grid; align-content: center; justify-items: center; gap: 3px;
+  padding: 0 12px;
   background: linear-gradient(180deg, rgba(10, 14, 20, .96), rgba(6, 9, 13, .98));
   border-top: 2px solid var(--line);
 }
-.ap-agent { font-size: 21px; font-weight: 700; letter-spacing: .14em; }
-.ap-player { font-size: 14px; font-weight: 700; letter-spacing: .06em; color: var(--ink-dim); }
+/* Player name leads, agent name supports it underneath. Handles run longer
+   than agent names, so the headline shrinks to fit rather than spilling out
+   of the card. */
+.ap-player {
+  font-size: 20px; font-weight: 700; letter-spacing: .03em;
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ap-agent {
+  font-size: 13px; font-weight: 700; letter-spacing: .16em;
+  color: var(--ink-dim);
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 /* focused card lifts and takes the team colour */
 .ap-card.on {
@@ -768,7 +779,7 @@ svg.i { width: 1em; height: 1em; fill: currentColor; display: block; }
   box-shadow: inset 0 0 0 2px var(--team), 0 22px 50px rgba(0, 0, 0, .6);
 }
 .ap-card.on .ap-foot { border-top-color: var(--team); background: linear-gradient(180deg, color-mix(in srgb, var(--team) 22%, rgba(10,14,20,.96)), rgba(6, 9, 13, .98)); }
-.ap-card.on .ap-agent { color: var(--ink); }
+.ap-card.on .ap-agent { color: var(--ink); }   /* lift the supporting line too */
 .ap-card.on::after {
   content: ''; position: absolute; left: 12%; right: 12%; bottom: 0; height: 3px;
   background: var(--team); box-shadow: 0 0 14px var(--team);

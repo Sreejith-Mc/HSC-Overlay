@@ -380,8 +380,8 @@ function renderAgentPick() {
           <div class="ap-inner">
             <div class="ap-art" style="${art ? `background-image:url('${art}')` : ''}"></div>
             <div class="ap-foot">
-              <div class="ap-agent">${escapeHtml(agentLabel(p.agent) || '—')}</div>
               <div class="ap-player">${escapeHtml(p.name)}</div>
+              <div class="ap-agent">${escapeHtml(agentLabel(p.agent) || '—')}</div>
             </div>
           </div>
         </div>`;
