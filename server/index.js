@@ -116,8 +116,18 @@ function migrate(s) {
   if (!Array.isArray(s.veto.maps)) s.veto.maps = [];
   s.screens = { ...base.screens, ...(s.screens || {}) };
   s.screens.agentPick = { ...base.screens.agentPick, ...(s.screens.agentPick || {}) };
-  if (!Array.isArray(s.screens.agentPick.revealed) || s.screens.agentPick.revealed.length !== 5) {
-    s.screens.agentPick.revealed = [false, false, false, false, false];
+  {
+    // `revealed` used to be one flat array for whichever team was showing;
+    // it is now per side. `focus` moved from an index to a player id.
+    const ap = s.screens.agentPick;
+    const blank = () => [false, false, false, false, false];
+    if (Array.isArray(ap.revealed)) ap.revealed = { A: ap.revealed, B: blank() };
+    if (!ap.revealed || typeof ap.revealed !== 'object') ap.revealed = { A: blank(), B: blank() };
+    for (const t of ['A', 'B']) {
+      if (!Array.isArray(ap.revealed[t]) || ap.revealed[t].length !== 5) ap.revealed[t] = blank();
+    }
+    if (typeof ap.focus === 'number') ap.focus = ap.focus >= 0 ? `${ap.team || 'A'}${ap.focus + 1}` : '';
+    if (typeof ap.focus !== 'string') ap.focus = '';
   }
   s.screens.banner = { ...base.screens.banner, ...(s.screens.banner || {}) };
   s.round = { ...base.round, ...(s.round || {}) };

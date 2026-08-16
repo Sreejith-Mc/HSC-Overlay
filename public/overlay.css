@@ -699,9 +699,30 @@ svg.i { width: 1em; height: 1em; fill: currentColor; display: block; }
 
 .ap-head { text-align: center; display: grid; gap: 4px; }
 .ap-team { font-size: 20px; font-weight: 700; letter-spacing: .3em; color: var(--team, var(--tA)); }
+.ap-team .ap-ta { color: var(--tA); }
+.ap-team .ap-tb { color: var(--tB); }
+.ap-team i { font-style: normal; color: var(--ink-faint); margin: 0 14px; letter-spacing: .2em; }
 .ap-title { font-size: 46px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
 
-.ap-row { display: flex; gap: 18px; align-items: flex-end; }
+.ap-row { display: flex; gap: 18px; align-items: flex-end; justify-content: center; }
+.ap-side { display: flex; gap: 18px; align-items: flex-end; }
+
+/* Both line-ups on screen: a clear gap and a divider so it reads as two
+   opposing sides rather than one long row. */
+.ap-row[data-dual="1"] { gap: 0; }
+.ap-row[data-dual="1"] .ap-side { gap: 14px; }
+.ap-vs {
+  align-self: stretch;
+  display: grid; place-items: center;
+  padding: 0 40px;
+  font-size: 22px; font-weight: 700; letter-spacing: .24em;
+  color: var(--ink-faint);
+  position: relative;
+}
+.ap-vs::before {
+  content: ''; position: absolute; top: 12%; bottom: 12%; left: 50%;
+  width: 1px; background: linear-gradient(180deg, transparent, var(--line-hot), transparent);
+}
 
 .ap-card {
   position: relative;

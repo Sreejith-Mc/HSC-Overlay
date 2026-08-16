@@ -203,6 +203,12 @@
         <button class="btn ghost" data-act="apHide">Hide</button>
       </div>
       <div class="row">
+        <button class="btn seg" data-act="apLayout" data-v="auto">Auto</button>
+        <button class="btn seg" data-act="apLayout" data-v="both">Both teams</button>
+        <button class="btn seg" data-act="apLayout" data-v="single">One team</button>
+      </div>
+      <p class="note" id="apLayoutNote"></p>
+      <div class="row" id="apTeamRow">
         <button class="btn seg" data-act="apTeam" data-v="A">Team A</button>
         <button class="btn seg" data-act="apTeam" data-v="B">Team B</button>
         <label style="flex:2">Heading<input data-bind="screens.agentPick.title" /></label>

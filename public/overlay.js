@@ -371,38 +371,52 @@ function renderAgentPick() {
   const row = $('apRow');
   if (!ap.on && !row.children.length) return;
 
-  const team = S.teams[ap.team] || S.teams.A;
-  $('apTeam').textContent = team.name;
-  $('apTitle').textContent = ap.title || 'AGENT SELECT';
-  $('agentPick').style.setProperty('--team', team.color);
+  const dual = !!D.agentPick?.dual;
+  const sides = dual ? ['A', 'B'] : [ap.team === 'B' ? 'B' : 'A'];
+  row.dataset.dual = dual ? '1' : '0';
 
-  const roster = team.players.slice(0, team.rosterSize ?? 5);
-  const key = `${ap.team}|${roster.map((p) => `${p.name}:${p.agent}`).join('~')}`;
+  // Header names whoever is on screen.
+  $('apTeam').innerHTML = dual
+    ? `<span class="ap-ta">${escapeHtml(S.teams.A.name)}</span><i>vs</i><span class="ap-tb">${escapeHtml(S.teams.B.name)}</span>`
+    : escapeHtml(S.teams[sides[0]].name);
+  $('apTitle').textContent = ap.title || 'AGENT SELECT';
+  $('agentPick').style.setProperty('--team', S.teams[sides[0]].color);
+
+  const rosterOf = (t) => S.teams[t].players.slice(0, S.teams[t].rosterSize ?? 5);
+  const key = `${dual ? 'dual' : sides[0]}|` +
+    sides.map((t) => rosterOf(t).map((p) => `${p.name}:${p.agent}`).join('~')).join('||');
+
   if (row.dataset.key !== key) {
     row.dataset.key = key;
-    row.innerHTML = roster.map((p, i) => {
-      const art = assetFor('agents', `${p.agent}-full`) || assetFor('agents', p.agent);
-      // The frame flies in with the screen; .ap-inner holds everything that
-      // swipes up when this player is revealed.
-      return `
-        <div class="ap-card" style="--i:${i}" data-revealed="0">
-          <div class="ap-pending"><span>${escapeHtml(p.name)}</span></div>
-          <div class="ap-inner">
-            <div class="ap-art" style="${art ? `background-image:url('${art}')` : ''}"></div>
-            <div class="ap-foot">
-              <div class="ap-player">${escapeHtml(p.name)}</div>
-              <div class="ap-agent">${escapeHtml(agentLabel(p.agent) || '—')}</div>
-            </div>
-          </div>
-        </div>`;
-    }).join('');
+    // Reveal index drives the entrance stagger, so cards fly in in the same
+    // alternating order they later reveal in.
+    const orderIndex = new Map((D.agentPick?.order || []).map(([t, i], n) => [`${t}${i}`, n]));
+    row.innerHTML = sides.map((t) => `
+      <div class="ap-side ap-side-${t.toLowerCase()}" style="--team:${S.teams[t].color}">
+        ${rosterOf(t).map((p, i) => {
+          const art = assetFor('agents', `${p.agent}-full`) || assetFor('agents', p.agent);
+          return `
+            <div class="ap-card" data-pid="${t}${i}" data-revealed="0" style="--i:${orderIndex.get(`${t}${i}`) ?? i}">
+              <div class="ap-pending"><span>${escapeHtml(p.name)}</span></div>
+              <div class="ap-inner">
+                <div class="ap-art" style="${art ? `background-image:url('${art}')` : ''}"></div>
+                <div class="ap-foot">
+                  <div class="ap-player">${escapeHtml(p.name)}</div>
+                  <div class="ap-agent">${escapeHtml(agentLabel(p.agent) || '—')}</div>
+                </div>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>`).join(dual ? '<div class="ap-vs">VS</div>' : '');
   }
 
-  const revealed = Array.isArray(ap.revealed) ? ap.revealed : [];
-  [...row.children].forEach((el, i) => {
-    el.dataset.revealed = revealed[i] ? '1' : '0';
+  row.querySelectorAll('.ap-card').forEach((el) => {
+    const t = el.dataset.pid[0];
+    const i = +el.dataset.pid.slice(1);
+    const shown = !!ap.revealed?.[t]?.[i];
+    el.dataset.revealed = shown ? '1' : '0';
     // Only a revealed card can hold the spotlight.
-    el.classList.toggle('on', i === ap.focus && !!revealed[i]);
+    el.classList.toggle('on', shown && ap.focus === `${t}${i + 1}`);
   });
 }
 

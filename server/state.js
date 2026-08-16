@@ -105,12 +105,17 @@ export function initialState() {
     /** Full-frame broadcast screens, each independent of the match state. */
     screens: {
       /**
-       * Agent line-up reveal. `focus` highlights one card (-1 for none) and
-       * `revealed` gates each card's swipe-up, one player at a time.
+       * Agent line-up reveal.
+       *
+       * `layout` — 'auto' shows both sides together once the rosters are small
+       *   enough to fit (3v3 or less), otherwise one team at a time. 'both' and
+       *   'single' force it either way.
+       * `focus`  — player id to spotlight ('A2'), or '' for none.
+       * `revealed` — per side, gating each card's swipe-up.
        */
       agentPick: {
-        on: false, team: 'A', focus: -1, title: 'AGENT SELECT',
-        revealed: [false, false, false, false, false],
+        on: false, team: 'A', layout: 'auto', focus: '', title: 'AGENT SELECT',
+        revealed: { A: [false, false, false, false, false], B: [false, false, false, false, false] },
       },
       /** Timeout / result band. kind: 'timeout' | 'win' | 'loss' */
       banner: { on: false, kind: 'timeout', team: 'A', showScore: true },
@@ -422,6 +427,38 @@ function nextRound(state) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Agent select layout
+ * ------------------------------------------------------------------ */
+
+/** Both line-ups fit side by side up to 3v3; beyond that it's one team. */
+export function agentPickIsDual(state) {
+  const ap = state.screens.agentPick;
+  if (ap.layout === 'both') return true;
+  if (ap.layout === 'single') return false;
+  return Math.max(state.teams.A.rosterSize ?? 5, state.teams.B.rosterSize ?? 5) <= 3;
+}
+
+/**
+ * The order cards reveal in. Showing both sides alternates them so each pair
+ * lands together — A1, B1, A2, B2 — rather than filling one side first.
+ */
+export function agentRevealOrder(state) {
+  const ap = state.screens.agentPick;
+  const order = [];
+  if (agentPickIsDual(state)) {
+    const max = Math.max(state.teams.A.rosterSize ?? 5, state.teams.B.rosterSize ?? 5);
+    for (let i = 0; i < max; i++) {
+      if (i < (state.teams.A.rosterSize ?? 5)) order.push(['A', i]);
+      if (i < (state.teams.B.rosterSize ?? 5)) order.push(['B', i]);
+    }
+  } else {
+    const t = ap.team === 'B' ? 'B' : 'A';
+    for (let i = 0; i < (state.teams[t].rosterSize ?? 5); i++) order.push([t, i]);
+  }
+  return order;
+}
+
+/* ------------------------------------------------------------------ *
  * Full-frame screens
  * ------------------------------------------------------------------ */
 
@@ -651,18 +688,23 @@ export function reduce(state, action) {
     /* ---- agent select reveal ---- */
     case 'agentPick.reveal': {
       const ap = state.screens.agentPick;
-      if (!Array.isArray(ap.revealed) || ap.revealed.length !== 5) ap.revealed = [false, false, false, false, false];
-      const names = state.teams[ap.team]?.players || [];
-      if (a.mode === 'all') ap.revealed = ap.revealed.map(() => true);
-      else if (a.mode === 'none') ap.revealed = ap.revealed.map(() => false);
-      else if (a.mode === 'next') {
-        const i = ap.revealed.findIndex((r) => !r);
-        if (i >= 0) {
-          ap.revealed[i] = true;
-          pushLog(state, 'agents', `Revealed ${names[i]?.name || `player ${i + 1}`}`);
+      const order = agentRevealOrder(state);
+
+      if (a.mode === 'all' || a.mode === 'none') {
+        const on = a.mode === 'all';
+        for (const [t, i] of order) ap.revealed[t][i] = on;
+      } else if (a.mode === 'next') {
+        // Alternates sides when both are on screen: A1, B1, A2, B2 …
+        const next = order.find(([t, i]) => !ap.revealed[t][i]);
+        if (next) {
+          const [t, i] = next;
+          ap.revealed[t][i] = true;
+          const p = state.teams[t].players[i];
+          pushLog(state, 'agents', `Revealed ${p?.name || `${t}${i + 1}`} (${state.teams[t].tag})`);
         }
-      } else if (typeof a.index === 'number' && a.index >= 0 && a.index < 5) {
-        ap.revealed[a.index] = a.revealed !== false;
+      } else if (typeof a.index === 'number') {
+        const t = a.team === 'B' ? 'B' : a.team === 'A' ? 'A' : ap.team;
+        if (a.index >= 0 && a.index < 5) ap.revealed[t][a.index] = a.revealed !== false;
       }
       break;
     }
@@ -825,6 +867,7 @@ export function derive(state) {
     state.teams[t].score >= R.roundsToWin - 1 && state.teams[t].score > state.teams[other(t)].score);
 
   return {
+    agentPick: { dual: agentPickIsDual(state), order: agentRevealOrder(state) },
     remainingMs: remaining,
     clockLabel: formatClock(remaining),
     phase: state.clock.phase,

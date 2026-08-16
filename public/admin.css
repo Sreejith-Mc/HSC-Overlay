@@ -521,6 +521,10 @@ label.chk { display: flex; align-items: center; gap: 9px; color: var(--ink-2); f
 .v-rev, .a-rev { font-size: 11.5px; padding: 8px 6px; min-height: 34px; }
 .v-del { padding: 8px 6px; min-height: 34px; }
 .aname, .lname { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Tint the line-up rows by side so an alternating reveal order is readable */
+.arow[data-side="A"] { box-shadow: inset 3px 0 0 var(--tA); }
+.arow[data-side="B"] { box-shadow: inset 3px 0 0 var(--tB); }
+.dimmed { opacity: .4; pointer-events: none; }
 .laxis { font-size: 12.5px; color: var(--ink-3); }
 .l-dec, .l-inc { padding: 8px 0; font-size: 16px; font-weight: 600; min-height: 34px; }
 .l-val { text-align: center; }

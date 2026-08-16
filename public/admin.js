@@ -416,55 +416,77 @@ const blankVetoMap = (map) => ({ map, action: '', by: '', defense: '', revealed:
 function paintScreens() {
   const ap = S.screens?.agentPick || {};
   const bd = S.screens?.banner || {};
-  const team = S.teams[ap.team] || S.teams.A;
-  const revealed = Array.isArray(ap.revealed) ? ap.revealed : [];
+  const dual = !!D.agentPick?.dual;
+  const order = D.agentPick?.order || [];
+  const revealed = ap.revealed || { A: [], B: [] };
+
+  // Which team the single-team controls apply to.
+  const sides = dual ? ['A', 'B'] : [ap.team === 'B' ? 'B' : 'A'];
+  $('#apTeamRow')?.classList.toggle('dimmed', dual);
+  const note = $('#apLayoutNote');
+  if (note) {
+    note.textContent = dual
+      ? `Both line-ups on screen — ${S.teams.A.tag} left, ${S.teams.B.tag} right. Reveal alternates: ${
+          order.slice(0, 4).map(([t, i]) => `${t}${i + 1}`).join(' → ')}${order.length > 4 ? ' …' : ''}`
+      : `Showing ${S.teams[sides[0]].name} only. Both sides fit together at 3v3 or smaller.`;
+  }
 
   // Line-up: agent picker + per-player reveal, without leaving this tab.
   const list = $('#apList');
   if (list) {
-    if (list.dataset.team !== ap.team) {
-      list.dataset.team = ap.team;
-      list.innerHTML = team.players.map((_, i) => `
-        <div class="arow" data-i="${i}">
+    const sig = order.map(([t, i]) => `${t}${i}`).join(',');
+    if (list.dataset.sig !== sig) {
+      list.dataset.sig = sig;
+      list.innerHTML = order.map(([t, i]) => `
+        <div class="arow" data-t="${t}" data-i="${i}">
           <span class="aname"></span>
           <select class="a-agent">${agentOptions()}</select>
-          <button class="btn ghost a-rev">HIDDEN</button>
+          <button class="btn ghost a-rev">Hidden</button>
         </div>`).join('');
       list.querySelectorAll('.arow').forEach((row) => {
-        const i = +row.dataset.i;
+        const t = row.dataset.t, i = +row.dataset.i;
         row.querySelector('.a-agent').addEventListener('change', (e) =>
-          send({ type: 'player.patch', id: `${list.dataset.team}${i + 1}`, patch: { agent: e.target.value } }));
+          send({ type: 'player.patch', id: `${t}${i + 1}`, patch: { agent: e.target.value } }));
         row.querySelector('.a-rev').addEventListener('click', () =>
-          send({ type: 'agentPick.reveal', index: i, revealed: !(S.screens.agentPick.revealed || [])[i] }));
+          send({ type: 'agentPick.reveal', team: t, index: i,
+                 revealed: !(S.screens.agentPick.revealed?.[t] || [])[i] }));
       });
     }
     list.querySelectorAll('.arow').forEach((row) => {
-      const i = +row.dataset.i;
-      const p = team.players[i];
-      row.querySelector('.aname').textContent = p.name;
+      const t = row.dataset.t, i = +row.dataset.i;
+      const p = S.teams[t].players[i];
+      if (!p) return;
+      row.querySelector('.aname').textContent = dual ? `${S.teams[t].tag} · ${p.name}` : p.name;
+      row.dataset.side = t;
       setVal(row.querySelector('.a-agent'), p.agent || '');
+      const on = !!revealed[t]?.[i];
       const rev = row.querySelector('.a-rev');
-      rev.textContent = revealed[i] ? 'SHOWN' : 'HIDDEN';
-      rev.classList.toggle('on', !!revealed[i]);
+      rev.textContent = on ? 'Shown' : 'Hidden';
+      rev.classList.toggle('on', on);
     });
   }
 
   // Spotlight buttons follow whichever team's line-up is on screen.
   const row = $('#apFocusRow');
   if (row) {
-    const html = ['<button class="btn ghost" data-act="apFocus" data-v="-1">NONE</button>']
-      .concat(team.players.map((p, i) => `<button class="btn" data-act="apFocus" data-v="${i}">${escapeHtml(p.name)}</button>`)).join('');
+    const html = ['<button class="btn ghost" data-act="apFocus" data-v="">None</button>']
+      .concat(order.map(([t, i]) => {
+        const p = S.teams[t].players[i];
+        return `<button class="btn" data-act="apFocus" data-v="${t}${i + 1}">${
+          escapeHtml(dual ? `${S.teams[t].tag} ${p.name}` : p.name)}</button>`;
+      })).join('');
     if (row.dataset.h !== html) { row.dataset.h = html; row.innerHTML = html; }
     row.querySelectorAll('[data-act="apFocus"]').forEach((b) => {
-      const i = Number(b.dataset.v);
-      b.classList.toggle('on', i === (ap.focus ?? -1));
+      const v = b.dataset.v;
+      b.classList.toggle('on', v === (ap.focus || ''));
       // Spotlighting a card that isn't on screen yet does nothing, so say so.
-      b.disabled = i >= 0 && !revealed[i];
+      b.disabled = !!v && !revealed[v[0]]?.[+v.slice(1) - 1];
     });
   }
 
   const mark = (sel, test) => $$(sel).forEach((b) => b.classList.toggle('on', test(b.dataset.v)));
   mark('[data-act="apTeam"]', (v) => v === ap.team);
+  mark('[data-act="apLayout"]', (v) => v === (ap.layout || 'auto'));
   mark('[data-act="bandKind"]', (v) => v === bd.kind);
   mark('[data-act="bandTeam"]', (v) => v === bd.team);
   $$('[data-act="apShow"], [data-act="apHide"]').forEach((b) =>
@@ -797,7 +819,8 @@ document.addEventListener('click', (e) => {
     case 'apShow': patchPath('screens.agentPick.on', true); break;
     case 'apHide': patchPath('screens.agentPick.on', false); break;
     case 'apTeam': patchPath('screens.agentPick.team', v); break;
-    case 'apFocus': patchPath('screens.agentPick.focus', Number(v)); break;
+    case 'apFocus': patchPath('screens.agentPick.focus', v || ''); break;
+    case 'apLayout': patchPath('screens.agentPick.layout', v); break;
     case 'apRevealNext': send({ type: 'agentPick.reveal', mode: 'next' }); break;
     case 'apRevealAll': send({ type: 'agentPick.reveal', mode: 'all' }); break;
     case 'apRevealNone': send({ type: 'agentPick.reveal', mode: 'none' }); break;
