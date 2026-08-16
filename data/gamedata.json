@@ -561,6 +561,74 @@
     "Summit",
     "Sunset"
   ],
+  "MAP_POOLS": {
+    "standard": [
+      "Abyss",
+      "Ascent",
+      "Bind",
+      "Breeze",
+      "Corrode",
+      "Fracture",
+      "Haven",
+      "Icebox",
+      "Lotus",
+      "Pearl",
+      "Split",
+      "Summit",
+      "Sunset"
+    ],
+    "retake": [
+      "Abyss",
+      "Ascent",
+      "Bind",
+      "Breeze",
+      "Corrode",
+      "Fracture",
+      "Haven",
+      "Icebox",
+      "Lotus",
+      "Pearl",
+      "Split",
+      "Summit",
+      "Sunset"
+    ],
+    "tdm": [
+      "District",
+      "Drift",
+      "Glitch",
+      "Kasbah",
+      "Piazza"
+    ],
+    "skirmish": [
+      "Skirmish A",
+      "Skirmish B",
+      "Skirmish C",
+      "Skirmish D",
+      "Skirmish E"
+    ]
+  },
+  "MODES": {
+    "standard": {
+      "label": "Standard",
+      "roster": 5,
+      "pool": "standard"
+    },
+    "retake": {
+      "label": "Retake",
+      "roster": 3,
+      "pool": "retake"
+    },
+    "tdm": {
+      "label": "Team Deathmatch",
+      "roster": 5,
+      "pool": "tdm"
+    },
+    "skirmish": {
+      "label": "Skirmish",
+      "roster": 2,
+      "pool": "skirmish"
+    }
+  },
   "RULES": {
     "startCredits": 800,
     "maxCredits": 9000,

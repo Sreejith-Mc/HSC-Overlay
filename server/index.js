@@ -111,6 +111,7 @@ function migrate(s) {
   s.overlay.lowerThird = { ...base.overlay.lowerThird, ...(s.overlay.lowerThird || {}) };
   s.overlay.layout = { ...base.overlay.layout, ...(s.overlay.layout || {}) };
   s.broadcast = { ...base.broadcast, ...(s.broadcast || {}) };
+  s.format = { ...base.format, ...(s.format || {}) };
   s.veto = { ...base.veto, ...(s.veto || {}) };
   if (!Array.isArray(s.veto.maps)) s.veto.maps = [];
   s.screens = { ...base.screens, ...(s.screens || {}) };

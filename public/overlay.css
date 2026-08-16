@@ -984,6 +984,10 @@ svg.i { width: 1em; height: 1em; fill: currentColor; display: block; }
 .hide { opacity: 0 !important; pointer-events: none; }
 .stage[data-ready="0"] > * { opacity: 0; }
 
+/* Player slots the current mode doesn't field — removed from flow entirely so
+   a 2v2 board is genuinely two rows tall, not five with gaps. */
+.off-roster { display: none !important; }
+
 /* ==========================================================================
    ELEMENT TOGGLES
    Every switch in the admin's OVERLAY tab sets an `off-<key>` class on the

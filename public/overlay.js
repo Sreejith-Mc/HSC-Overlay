@@ -215,11 +215,20 @@ function render() {
   firstPaint = false;
 
   // ---- players ----
+  // Slots past the roster size (Retake 3v3, Skirmish 2v2) are hidden rather
+  // than removed, so switching modes back restores them untouched.
   for (const t of ['A', 'B']) {
+    const size = D.teams[t].rosterSize;
     S.teams[t].players.forEach((p, i) => {
+      const row = $(`bbRows${t}`).children[i];
+      const card = $(`rail${t}`).children[i];
+      const active = i < size;
+      row.classList.toggle('off-roster', !active);
+      card.classList.toggle('off-roster', !active);
+      if (!active) return;
       const dp = D.teams[t].players[i];
-      paintBuyRow($(`bbRows${t}`).children[i], p, dp, show);
-      paintLiveCard($(`rail${t}`).children[i], p, dp, show);
+      paintBuyRow(row, p, dp, show);
+      paintLiveCard(card, p, dp, show);
     });
   }
 
@@ -367,10 +376,11 @@ function renderAgentPick() {
   $('apTitle').textContent = ap.title || 'AGENT SELECT';
   $('agentPick').style.setProperty('--team', team.color);
 
-  const key = `${ap.team}|${team.players.map((p) => `${p.name}:${p.agent}`).join('~')}`;
+  const roster = team.players.slice(0, team.rosterSize ?? 5);
+  const key = `${ap.team}|${roster.map((p) => `${p.name}:${p.agent}`).join('~')}`;
   if (row.dataset.key !== key) {
     row.dataset.key = key;
-    row.innerHTML = team.players.map((p, i) => {
+    row.innerHTML = roster.map((p, i) => {
       const art = assetFor('agents', `${p.agent}-full`) || assetFor('agents', p.agent);
       // The frame flies in with the screen; .ap-inner holds everything that
       // swipes up when this player is revealed.

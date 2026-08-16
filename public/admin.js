@@ -83,7 +83,7 @@ const shieldOptions = () => Object.entries(GD.SHIELDS)
 const agentOptions = () => '<option value="">— agent —</option>' + Object.keys(GD.AGENTS).sort()
   .map((k) => `<option value="${k}">${AGENT_LABEL(k)}</option>`).join('');
 
-const mapOptions = () => GD.MAPS.map((m) => `<option value="${m}">${m}</option>`).join('');
+const mapOptions = (list) => (list || GD.MAPS).map((m) => `<option value="${m}">${m}</option>`).join('');
 
 /* ------------------------------------------------------------------ *
  * Kill logger selection state
@@ -209,9 +209,13 @@ const playerOf = (pid) => S.teams[pid[0]].players.find((p) => p.id === pid);
 
 function paintOps() {
   for (const t of ['A', 'B']) {
+    const size = S.teams[t].rosterSize ?? 5;
     S.teams[t].players.forEach((p, i) => {
       const card = $(`#ops${t}`).children[i];
       const dp = D.teams[t].players[i];
+      // Slots this mode doesn't field drop out of the logger entirely, so a
+      // 2v2 can't be mis-logged against a player who isn't in the server.
+      card.classList.toggle('off-roster', i >= size);
       card.classList.toggle('dead', !p.alive);
       card.querySelector('.pc-name').textContent = p.name;
       card.querySelector('.pc-agent').textContent = p.agent ? AGENT_LABEL(p.agent) : '—';
@@ -297,8 +301,12 @@ function paintRoster() {
   for (const t of ['A', 'B']) {
     const box = $(`#roster${t}`);
     if (!box) continue;
+    const size = S.teams[t].rosterSize ?? 5;
     S.teams[t].players.forEach((p, i) => {
       const row = box.children[i];
+      // Kept editable but dimmed, so you can prepare a sub before switching
+      // back to a bigger mode.
+      row.classList.toggle('bench', i >= size);
       setVal(row.querySelector('.f-name'), p.name);
       setVal(row.querySelector('.f-agent'), p.agent);
       setVal(row.querySelector('.f-primary'), p.weapons.primary);
@@ -318,19 +326,47 @@ function paintRoster() {
 
 const VETO_ACTIONS = { '': '— in pool —', ban: 'BAN', pick: 'PICK', decider: 'DECIDER' };
 
+/** Maps offered by the veto dropdowns follow the selected mode. */
+const modePool = () => {
+  const mode = S?.format?.mode || 'standard';
+  const poolKey = GD.MODES?.[mode]?.pool || 'standard';
+  return GD.MAP_POOLS?.[poolKey] || GD.MAPS;
+};
+
+function buildModeControls() {
+  const sel = $('#modeSelect');
+  if (!sel || sel.options.length) return;
+  sel.innerHTML = Object.entries(GD.MODES || {})
+    .map(([k, m]) => `<option value="${k}">${m.label} · ${m.roster}v${m.roster}</option>`).join('');
+  sel.addEventListener('change', (e) => send({ type: 'format.mode', mode: e.target.value }));
+  $('#rosterSelect')?.addEventListener('change', (e) =>
+    send({ type: 'team.rosterSize', size: Number(e.target.value) }));
+}
+
+function paintModeControls() {
+  const sel = $('#modeSelect');
+  if (!sel) return;
+  setVal(sel, S.format?.mode || 'standard');
+  // Both teams normally match; if an operator has split them, show A's.
+  setVal($('#rosterSelect'), String(S.teams.A.rosterSize ?? 5));
+}
+
 /** Sends the whole pool back, mirroring how sponsors are edited. */
 const setVetoMaps = (maps) => patchPath('veto.maps', maps);
 
 function paintVeto() {
+  paintModeControls();
   const list = $('#vetoList');
   const maps = S.veto?.maps || [];
 
-  if (list.dataset.n !== String(maps.length)) {
-    list.dataset.n = maps.length;
+  // Rebuild when the pool count changes, or when the mode swaps the map list.
+  const sig = `${maps.length}|${S.format?.mode || 'standard'}`;
+  if (list.dataset.n !== sig) {
+    list.dataset.n = sig;
     list.innerHTML = maps.map((_, i) => `
       <div class="vrow" data-i="${i}">
         <span class="vnum">${i + 1}</span>
-        <select class="v-map">${mapOptions()}</select>
+        <select class="v-map">${mapOptions(modePool())}</select>
         <select class="v-action">${Object.entries(VETO_ACTIONS).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
         <select class="v-by"><option value="">—</option><option value="A">Team A</option><option value="B">Team B</option></select>
         <select class="v-def"><option value="">—</option><option value="A">Team A</option><option value="B">Team B</option></select>
@@ -776,14 +812,18 @@ document.addEventListener('click', (e) => {
     case 'revealAll': send({ type: 'veto.reveal', mode: 'all' }); break;
     case 'revealNone': send({ type: 'veto.reveal', mode: 'none' }); break;
     case 'vetoAdd':
-      setVetoMaps([...(S.veto.maps || []), blankVetoMap(GD.MAPS[0] || '')]);
+      setVetoMaps([...(S.veto.maps || []), blankVetoMap(modePool()[0] || '')]);
       break;
     case 'vetoPreset': {
       const n = Number(v);
-      setVetoMaps(GD.MAPS.slice(0, n).map(blankVetoMap));
-      toast(`POOL SET TO ${n} MAPS`);
+      setVetoMaps(modePool().slice(0, n).map(blankVetoMap));
+      toast(`Pool set to ${n} maps`);
       break;
     }
+    case 'loadPool':
+      send({ type: 'format.mode', mode: S.format?.mode || 'standard', loadPool: true });
+      toast('Mode map pool loaded');
+      break;
     case 'vetoClear':
       if (confirm('Clear the whole map pool?')) setVetoMaps([]);
       break;
@@ -957,6 +997,7 @@ function initTheme() {
   buildRoster('B');
   buildToggles();
   buildLayout();
+  buildModeControls();
   buildUrls();
   initBindings();
   paintAssets();

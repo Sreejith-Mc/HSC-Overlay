@@ -47,6 +47,13 @@ function makeTeam(id, name, tag, color, side) {
   return {
     id, name, tag, color, side,
     logo: '',
+    /**
+     * How many players this side actually fields. Set from the game mode
+     * (Retake 3, Skirmish 2) but adjustable up to 5 on any mode — scrims and
+     * showmatches don't always follow the book. Slots beyond this are kept in
+     * state so nothing is lost when you switch back.
+     */
+    rosterSize: 5,
     score: 0,
     lossStreak: 0,
     timeouts: 2,
@@ -73,6 +80,9 @@ export function initialState() {
       sponsorMs: 8000,
       ticker: '',
     },
+
+    /** Game mode. Drives roster size and which maps the veto pool offers. */
+    format: { mode: 'standard' },
 
     maps: { current: 'Ascent', next: 'Pearl', decider: 'Haven' },
 
@@ -238,12 +248,19 @@ export function playerLoadout(p) {
   return v;
 }
 
+/**
+ * The players actually fielded this mode. Slots past the roster size still
+ * exist in state — so switching Skirmish → Standard brings them back intact —
+ * but they must not count toward alive counts, loadout, flawless or aces.
+ */
+export const activePlayers = (team) => team.players.slice(0, team.rosterSize ?? 5);
+
 export function teamLoadout(team) {
   if (team.loadoutLock != null) return team.loadoutLock;
-  return team.players.reduce((s, p) => s + (p.alive ? playerLoadout(p) : 0), 0);
+  return activePlayers(team).reduce((s, p) => s + (p.alive ? playerLoadout(p) : 0), 0);
 }
 
-const aliveCount = (team) => team.players.filter((p) => p.alive).length;
+const aliveCount = (team) => activePlayers(team).filter((p) => p.alive).length;
 
 function maxCharges(p, slot) {
   const ag = GD.AGENTS[p.agent];
@@ -311,12 +328,13 @@ function endRound(state, winner, condition) {
   const thrifty = ll > 0 && (wl <= ll * R.thrifty.ratio || ll - wl >= R.thrifty.diff);
   if (thrifty) w.stats.thrifties += 1;
 
-  // --- Flawless: winning team lost nobody.
-  const flawless = aliveCount(w) === 5;
+  // --- Flawless: winning team lost nobody. Scales with the roster.
+  const flawless = aliveCount(w) === (w.rosterSize ?? 5);
   if (flawless) w.stats.flawless += 1;
 
-  // --- Ace: a single player took all five.
-  const acePlayer = [...w.players, ...l.players].find((p) => p.roundKills >= 5);
+  // --- Ace: a single player took the whole enemy side, however big it is.
+  const acePlayer = [...activePlayers(w), ...activePlayers(l)]
+    .find((p) => p.roundKills >= (state.teams[other(p.id[0])].rosterSize ?? 5));
   if (acePlayer) state.teams[acePlayer.id[0]].stats.aces += 1;
 
   // --- Clutch: the flagged 1vX survivor's team took the round.
@@ -523,7 +541,7 @@ export function reduce(state, action) {
         if (state.round.clutch[t]) continue;
         const theirs = aliveCount(state.teams[other(t)]);
         if (aliveCount(state.teams[t]) === 1 && theirs >= 1) {
-          const survivor = state.teams[t].players.find((p) => p.alive);
+          const survivor = activePlayers(state.teams[t]).find((p) => p.alive);
           if (survivor) state.round.clutch[t] = { playerId: survivor.id, vs: theirs };
         }
       }
@@ -649,6 +667,36 @@ export function reduce(state, action) {
       break;
     }
 
+    /* ---- game mode ---- */
+    case 'format.mode': {
+      const mode = GD.MODES?.[a.mode] ? a.mode : 'standard';
+      state.format.mode = mode;
+      const def = GD.MODES[mode];
+
+      // Roster size follows the mode unless the operator has pinned it.
+      if (a.keepRoster !== true) {
+        for (const t of ['A', 'B']) state.teams[t].rosterSize = def.roster;
+      }
+
+      // Swap the veto pool to this mode's maps. Only when asked, so changing
+      // mode mid-veto doesn't wipe a board someone has already built.
+      if (a.loadPool) {
+        const pool = GD.MAP_POOLS?.[def.pool] || GD.MAPS;
+        state.veto.maps = pool.map((map) => ({ map, action: '', by: '', defense: '', revealed: false }));
+        state.maps.current = pool[0] || state.maps.current;
+      }
+
+      pushLog(state, 'match', `Mode set to ${def.label}${a.loadPool ? ` — pool loaded (${(GD.MAP_POOLS?.[def.pool] || []).length} maps)` : ''}`);
+      break;
+    }
+
+    case 'team.rosterSize': {
+      const n = clamp(a.size | 0, 1, GD.MAX_ROSTER || 5);
+      if (a.team) state.teams[a.team].rosterSize = n;
+      else for (const t of ['A', 'B']) state.teams[t].rosterSize = n;
+      break;
+    }
+
     /* ---- map veto ---- */
     case 'veto.reveal': {
       const list = state.veto.maps;
@@ -748,7 +796,8 @@ export function derive(state) {
       loadout,
       alive: aliveCount(team),
       econ: loadout < R.ecoThreshold ? 'ECO' : loadout >= R.fullBuyThreshold ? 'FULL BUY' : 'HALF BUY',
-      credits: team.players.reduce((s, p) => s + Math.max(0, p.credits - Math.max(0, playerLoadout(p) - (p.carried || 0))), 0),
+      rosterSize: team.rosterSize ?? 5,
+      credits: activePlayers(team).reduce((s, p) => s + Math.max(0, p.credits - Math.max(0, playerLoadout(p) - (p.carried || 0))), 0),
       players: team.players.map((p) => {
         const lv = playerLoadout(p);
         // What this round's shopping cost them, and what's left in the bank.

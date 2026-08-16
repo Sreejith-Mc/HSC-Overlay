@@ -156,6 +156,19 @@
         <button class="btn ghost" data-act="revealNone">Reset (hide all)</button>
       </div>
 
+      <h3>Game mode <span class="hint">sets roster size and which maps the pool offers</span></h3>
+      <p class="note">Standard and Retake use the 5v5 maps; TDM and Skirmish have their own.
+        <b>Load pool</b> replaces the veto board below with that mode's maps — it's a separate
+        button so changing mode mid-veto can't wipe a board you've already built.</p>
+      <div class="row">
+        <label style="flex:1">Mode<select id="modeSelect"></select></label>
+        <label style="flex:1">Players per team<select id="rosterSelect">
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+          <option value="4">4</option><option value="5">5</option>
+        </select></label>
+        <button class="btn" data-act="loadPool" style="flex:1">Load this mode's maps</button>
+      </div>
+
       <h3>Map pool <span class="hint">any size — 3, 5, 7 maps all lay out evenly</span></h3>
       <div class="row">
         <button class="btn" data-act="vetoAdd">+ Add map</button>

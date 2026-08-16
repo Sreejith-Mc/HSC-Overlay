@@ -83,6 +83,32 @@ export const MAPS = [
   'Haven', 'Icebox', 'Lotus', 'Pearl', 'Split', 'Sunset',
 ];
 
+/**
+ * Map pools per game mode. Taken from Riot's own map list: the 5v5 maps are
+ * the ones carrying a tactical description, while TDM and Skirmish ship their
+ * own smaller arenas. `npm run assets` regenerates these.
+ */
+export const MAP_POOLS = {
+  standard: MAPS,
+  retake: MAPS,                                                   // retakes play on the 5v5 maps
+  tdm: ['District', 'Drift', 'Glitch', 'Kasbah', 'Piazza'],
+  skirmish: ['Skirmish A', 'Skirmish B', 'Skirmish C', 'Skirmish D', 'Skirmish E'],
+};
+
+/**
+ * Formats the suite can run. `roster` is how many players a side fields by
+ * default — the panel still lets you go up to 5 on any mode, because scrims
+ * and showmatches don't always follow the book.
+ */
+export const MODES = {
+  standard: { label: 'Standard', roster: 5, pool: 'standard' },
+  retake: { label: 'Retake', roster: 3, pool: 'retake' },
+  tdm: { label: 'Team Deathmatch', roster: 5, pool: 'tdm' },
+  skirmish: { label: 'Skirmish', roster: 2, pool: 'skirmish' },
+};
+
+export const MAX_ROSTER = 5;
+
 /** Round win conditions — drive the pip icons on the scorebar. */
 export const WIN_CONDITIONS = {
   elim: { label: 'Elimination', icon: 'skull' },
@@ -133,4 +159,6 @@ export const BUY_PRESETS = {
   fullOp: { label: 'Full + Op', primary: 'operator', secondary: 'sheriff', shield: 'heavy', abilities: 2 },
 };
 
-export const DEFAULT_GAMEDATA = { WEAPONS, SHIELDS, AGENTS, MAPS, RULES, BUY_PRESETS, WIN_CONDITIONS };
+export const DEFAULT_GAMEDATA = {
+  WEAPONS, SHIELDS, AGENTS, MAPS, MAP_POOLS, MODES, MAX_ROSTER, RULES, BUY_PRESETS, WIN_CONDITIONS,
+};

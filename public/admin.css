@@ -385,6 +385,10 @@ code {
 .opscol:nth-child(1) .pcard { --team: var(--tA); }
 .opscol:nth-child(2) .pcard { --team: var(--tB); }
 .pcard.dead { opacity: .45; }
+/* Slots the current mode doesn't field */
+.pcard.off-roster { display: none; }
+.rplayer.bench { opacity: .4; }
+.rplayer.bench::after { content: 'bench'; font-size: 10px; color: var(--ink-3); }
 .pcard.killer {
   box-shadow: inset 3px 0 0 var(--team), 0 0 0 2.5px var(--blue);
   background: color-mix(in srgb, var(--blue) 14%, transparent);
